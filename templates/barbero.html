@@ -8,15 +8,15 @@
     * { box-sizing: border-box; }
     body { margin: 0; background: #0f0f10; color: #f5f5f5; font-family: 'Segoe UI', sans-serif; }
     .box { width: calc(100% - 20px); max-width: 1200px; margin: 10px auto; padding: 20px; background: #1b1b1c; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
-    h1 { color: #D4AF37; margin: 0; font-size: 28px; }
+    h1 { color: #D4AF37; margin: 0; font-size: 28px; text-align: center; }
     .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin: 20px 0; }
     .card { background: #242425; border: 1px solid #333; border-radius: 15px; padding: 15px; text-align: center; }
     .t { opacity: .7; font-size: 11px; text-transform: uppercase; color: #D4AF37; }
     .v { font-size: 22px; font-weight: bold; margin-top: 5px; }
     .money { color: #28a745; }
-    select { width: 100%; padding: 12px; background: #121213; color: #fff; border: 1px solid #333; border-radius: 10px; margin-bottom: 20px; }
-    .cita-item { background: #242425; padding: 15px; border-radius: 15px; margin-bottom: 10px; border-left: 4px solid #D4AF37; }
-    .btn-atender { width: 100%; padding: 12px; background: #D4AF37; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; margin-top: 10px; }
+    select { width: 100%; padding: 15px; background: #121213; color: #fff; border: 1px solid #d4af37; border-radius: 12px; margin-bottom: 20px; font-size: 16px; outline: none; cursor: pointer; }
+    .cita-item { background: #242425; padding: 15px; border-radius: 15px; margin-bottom: 10px; border-left: 4px solid #D4AF37; position: relative; }
+    .btn-atender { width: 100%; padding: 12px; background: #D4AF37; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; margin-top: 10px; text-transform: uppercase; }
     .tag { float: right; padding: 4px 8px; border-radius: 5px; font-size: 10px; font-weight: bold; }
     .ok { background: #28a745; } .done { background: #007bff; } .bad { background: #dc3545; }
   </style>
@@ -32,7 +32,7 @@
       <div class="card"><div class="t">Ganancia (Hoy)</div><div class="v money">₡{{ stats.total_atendido }}</div></div>
     </div>
 
-    <select onchange="window.location.href='?solo='+this.value">
+    <select id="selector_periodo" onchange="cambiarVista()">
       <option value="hoy" {% if stats.solo == 'hoy' %}selected{% endif %}>Citas de Hoy</option>
       <option value="manana" {% if stats.solo == 'manana' %}selected{% endif %}>Citas de Mañana</option>
       <option value="todas" {% if stats.solo == 'todas' %}selected{% endif %}>Todo el Historial</option>
@@ -56,9 +56,17 @@
         {% endif %}
       </div>
       {% else %}
-      <p style="text-align: center; opacity: 0.5;">No hay citas para mostrar.</p>
+      <p style="text-align: center; opacity: 0.5; padding: 20px;">No hay citas para mostrar en este periodo.</p>
       {% endfor %}
     </div>
   </div>
+
+  <script>
+    function cambiarVista() {
+      const valor = document.getElementById('selector_periodo').value;
+      // Esto recarga la página enviando la instrucción correcta al servidor
+      window.location.href = window.location.pathname + '?solo=' + valor;
+    }
+  </script>
 </body>
 </html>
