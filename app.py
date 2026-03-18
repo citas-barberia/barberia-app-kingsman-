@@ -154,7 +154,49 @@ def webhook():
             return request.args.get("hub.challenge")
         return "Token incorrecto", 403
     return "ok", 200
+# --- RUTA PARA EL PANEL DE CADA BARBERO ---
+@app.route("/panel/<nombre>")
+def panel_barbero(nombre):
+    # 1. Consultar todas las citas de la tabla en Supabase
+    url = f"{SUPABASE_URL}/rest/v1/citas?select=*"
+    res = requests.get(url, headers=_supabase_headers()).json()
+    
+    # 2. FILTRAR: Solo las que pertenecen a este barbero
+    # Esto asegura que Sebastian no vea lo de Erickson y viceversa
+    citas_barbero = [c for c in res if c.get("barbero") == nombre]
+    
+    # 3. CALCULAR ESTADÍSTICAS (Solo para este barbero)
+    hoy = _now_cr().strftime("%Y-%m-%d")
+    citas_hoy = [c for c in citas_barbero if c.get("fecha") == hoy]
+    
+    stats = {
+        "nombre": nombre,
+        "cant_total": len(citas_hoy),
+        "cant_activas": len([c for c in citas_hoy if c.get("servicio") not in ["CITA ATENDIDA", "CITA CANCELADA"]]),
+        "cant_atendidas": len([c for c in citas_hoy if c.get("servicio") == "CITA ATENDIDA"]),
+        "total_atendido": sum(int(c.get("precio", 0)) for c in citas_hoy if c.get("servicio") == "CITA ATENDIDA"),
+        "solo": request.args.get("solo", "hoy")
+    }
 
+    # Ordenar citas por hora
+    citas_barbero.sort(key=lambda x: x.get("hora", ""))
+
+    return render_template("barbero.html", citas=citas_barbero, stats=stats)
+
+# --- RUTA PARA MARCAR COMO ATENDIDO ---
+@app.route("/atendida", methods=["POST"])
+def marcar_atendida():
+    cita_id = request.form.get("id")
+    
+    # Actualizamos el nombre del servicio en Supabase para que cuente como dinero ganado
+    url = f"{SUPABASE_URL}/rest/v1/citas?id=eq.{cita_id}"
+    body = {"servicio": "CITA ATENDIDA"} # Esto lo marca como "Cobrado"
+    
+    requests.patch(url, headers=_supabase_headers(), json=body)
+    
+    flash("¡Cita completada y sumada a tus ganancias!")
+    # Regresamos a la página anterior
+    return redirect(request.referrer)
 if __name__ == "__main__":
     app.run(debug=True)
 
