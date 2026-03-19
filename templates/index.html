@@ -15,6 +15,7 @@
         input:focus, select:focus { border-color: #d4af37; }
         button.btn-principal { width: 100%; padding: 18px; background: #d4af37; color: #000; border: none; border-radius: 14px; font-size: 18px; font-weight: 800; cursor: pointer; margin-top: 10px; text-transform: uppercase; }
         .flash { background: #d4af37; color: #000; padding: 15px; border-radius: 12px; text-align: center; margin-bottom: 20px; font-weight: bold; }
+        .mini-texto { color: #bbb; font-size: 13px; margin-top: 6px; }
     </style>
 </head>
 <body>
@@ -46,6 +47,7 @@
                 <option value="{{ id }}">{{ info.nombre }}</option>
                 {% endfor %}
             </select>
+            <div class="mini-texto">Las horas que salgan son del barbero que selecciones.</div>
         </div>
 
         <div class="form-group">
@@ -53,7 +55,7 @@
             <select name="servicio" id="servicio" required onchange="actualizarHoras()">
                 <option value="" disabled selected>¿Qué servicio buscas?</option>
                 {% for nombre, info in servicios.items() %}
-                <option value="{{ nombre }}">{{ nombre }} ({{ info.duracion }} min)</option>
+                <option value="{{ nombre }}">{{ nombre }} - ₡{{ info.precio }} ({{ info.duracion }} min)</option>
                 {% endfor %}
             </select>
         </div>
@@ -61,6 +63,7 @@
         <div class="form-group">
             <label>Fecha:</label>
             <input type="date" id="fecha" name="fecha" value="{{ hoy_iso }}" min="{{ hoy_iso }}" required onchange="actualizarHoras()">
+            <div class="mini-texto">Fecha actual según Costa Rica.</div>
         </div>
 
         <div class="form-group">
@@ -68,6 +71,7 @@
             <select name="hora" id="hora_select" required>
                 <option value="">Primero elige barbero y servicio...</option>
             </select>
+            <div class="mini-texto">Horario de atención: 8:00 am a 7:00 pm.</div>
         </div>
 
         <button type="submit" class="btn-principal">CONFIRMAR ESPACIO</button>

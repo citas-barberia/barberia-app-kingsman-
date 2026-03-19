@@ -5,12 +5,12 @@ import os
 import uuid
 import requests
 
-TZ = ZoneInfo("UTC")
+TZ = ZoneInfo("America/Costa_Rica")
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "secret_key_123")
 
 SUPABASE_URL = "https://hvvoijhagmacmljigfzw.supabase.co"
-SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh2dm9pamhhZ21hY21samlnZnp3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3OTI5NDQsImV4cCI6MjA4OTM2ODk0NH0.NePskMsd11PlyZItxjPwQvwVy4n9OoWeMpp9qMXGvuk"
+SUPABASE_KEY = "PEGA_AQUI_TU_KEY"
 
 BARBEROS = {
     "1": {"nombre": "Sebastian", "telefono": "50660840460"},
@@ -21,6 +21,7 @@ BARBEROS = {
 SERVICIOS = {
     "Corte de cabello": {"precio": 5000, "duracion": 30},
     "Corte + barba": {"precio": 7000, "duracion": 60},
+    "Cejas": {"precio": 2000, "duracion": 15},
 }
 
 def _headers():
@@ -49,7 +50,7 @@ def hora_choque(hora_nueva, duracion_nueva, hora_existente, duracion_existente):
     inicio_nueva = datetime.strptime(hora_nueva.upper(), "%I:%M%p")
     fin_nueva = inicio_nueva + timedelta(minutes=duracion_nueva)
 
-    inicio_existente = datetime.strptime(hora_existente.upper(), "%H:%M:%S")
+    inicio_existente = datetime.strptime(hora_existente, "%H:%M:%S")
     fin_existente = inicio_existente + timedelta(minutes=duracion_existente)
 
     return inicio_nueva < fin_existente and fin_nueva > inicio_existente
@@ -92,6 +93,11 @@ def agendar():
             flash("El servicio seleccionado no es válido.")
             return redirect(url_for("index"))
 
+        hoy_cr = datetime.now(TZ).strftime("%Y-%m-%d")
+        if fecha < hoy_cr:
+            flash("No puedes agendar en una fecha pasada.")
+            return redirect(url_for("index"))
+
         citas_existentes = obtener_citas_barbero_fecha(barbero_id, fecha)
         duracion_nueva = calcular_duracion(servicio)
 
@@ -130,6 +136,7 @@ def agendar():
     except Exception as e:
         print(f"Error agendando: {e}")
         flash("Ocurrió un error al agendar.")
+
     return redirect(url_for("index"))
 
 @app.route("/horas")
@@ -139,6 +146,9 @@ def horas():
     servicio = request.args.get("servicio")
 
     if not all([fecha, barbero_id, servicio]):
+        return jsonify([])
+
+    if barbero_id not in BARBEROS:
         return jsonify([])
 
     if servicio not in SERVICIOS:
@@ -162,20 +172,36 @@ def horas():
         ocupados.append((inicio, fin))
 
     disponibles = []
-    actual = datetime.strptime("09:00AM", "%I:%M%p")
+    apertura = datetime.strptime("08:00AM", "%I:%M%p")
     cierre = datetime.strptime("07:00PM", "%I:%M%p")
+
+    fecha_hoy_cr = datetime.now(TZ).strftime("%Y-%m-%d")
+    ahora_cr = datetime.now(TZ)
+
+    actual = apertura
 
     while actual + timedelta(minutes=duracion_nueva) <= cierre:
         fin_actual = actual + timedelta(minutes=duracion_nueva)
-
         libre = True
+
         for inicio_ocupado, fin_ocupado in ocupados:
             if actual < fin_ocupado and fin_actual > inicio_ocupado:
                 libre = False
                 break
 
         if libre:
-            disponibles.append(actual.strftime("%I:%M%p").lower())
+            # Si la fecha elegida es hoy en Costa Rica, ocultar horas que ya pasaron
+            if fecha == fecha_hoy_cr:
+                hora_slot_hoy = ahora_cr.replace(
+                    hour=actual.hour,
+                    minute=actual.minute,
+                    second=0,
+                    microsecond=0
+                )
+                if hora_slot_hoy > ahora_cr:
+                    disponibles.append(actual.strftime("%I:%M%p").lower())
+            else:
+                disponibles.append(actual.strftime("%I:%M%p").lower())
 
         actual += timedelta(minutes=15)
 
