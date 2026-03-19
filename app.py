@@ -9,8 +9,8 @@ TZ = ZoneInfo("America/Costa_Rica")
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "secret_key_123")
 
-SUPABASE_URL = "https://hvvoijhagmacmljigfzw.supabase.co"
-SUPABASE_KEY = "PEGA_AQUI_TU_KEY"
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 
 BARBEROS = {
     "1": {"nombre": "Sebastian", "telefono": "50660840460"},
