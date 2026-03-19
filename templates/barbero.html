@@ -45,7 +45,7 @@
         }
         .filtros {
             display: grid;
-            grid-template-columns: repeat(5, 1fr);
+            grid-template-columns: repeat(4, 1fr);
             gap: 10px;
             margin-bottom: 20px;
         }
@@ -153,11 +153,31 @@
             border-radius: 12px;
             color: #bbb;
         }
+        .auto-actualiza {
+            text-align: center;
+            color: #aaa;
+            font-size: 12px;
+            margin-bottom: 15px;
+        }
+
+        @media (max-width: 700px) {
+            .stats {
+                grid-template-columns: 1fr;
+            }
+            .filtros {
+                grid-template-columns: 1fr 1fr;
+            }
+            .acciones {
+                flex-direction: column;
+            }
+        }
     </style>
 </head>
 <body>
     <div class="box">
         <h1>Panel: {{ stats.nombre }}</h1>
+
+        <div class="auto-actualiza">Este panel se actualiza automáticamente cada 5 segundos.</div>
 
         <div class="stats">
             <div class="stat-card">
@@ -178,7 +198,6 @@
             <a href="{{ url_for('panel_barbero', id_barbero=stats.id, solo='hoy') }}" class="{% if stats.modo == 'hoy' %}activo{% endif %}">Hoy</a>
             <a href="{{ url_for('panel_barbero', id_barbero=stats.id, solo='manana') }}" class="{% if stats.modo == 'manana' %}activo{% endif %}">Mañana</a>
             <a href="{{ url_for('panel_barbero', id_barbero=stats.id, solo='todas') }}" class="{% if stats.modo == 'todas' %}activo{% endif %}">Todas</a>
-            <a href="{{ url_for('panel_barbero', id_barbero=stats.id, solo='canceladas_hoy') }}" class="{% if stats.modo == 'canceladas_hoy' %}activo{% endif %}">Canceladas hoy</a>
             <a href="{{ url_for('panel_barbero', id_barbero=stats.id, solo='historial_2026', mes=stats.mes) }}" class="{% if stats.modo == 'historial_2026' %}activo{% endif %}">Historial 2026</a>
         </div>
 
@@ -234,5 +253,11 @@
             </div>
         {% endif %}
     </div>
+
+    <script>
+        setTimeout(() => {
+            window.location.reload();
+        }, 5000);
+    </script>
 </body>
 </html>

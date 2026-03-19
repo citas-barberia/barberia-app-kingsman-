@@ -306,8 +306,6 @@ def panel_barbero(id_barbero):
         filtradas = [c for c in citas if str(c.get("fecha")) == hoy and str(c.get("estado", "")).lower() != "cancelada"]
     elif modo == "manana":
         filtradas = [c for c in citas if str(c.get("fecha")) == manana and str(c.get("estado", "")).lower() != "cancelada"]
-    elif modo == "canceladas_hoy":
-        filtradas = [c for c in citas if str(c.get("fecha")) == hoy and str(c.get("estado", "")).lower() == "cancelada"]
     elif modo == "historial_2026":
         filtradas = [
             c for c in citas
