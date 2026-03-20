@@ -4,6 +4,8 @@ from zoneinfo import ZoneInfo
 import os
 import uuid
 import requests
+import threading
+import time
 
 TZ = ZoneInfo("America/Costa_Rica")
 app = Flask(__name__)
@@ -16,11 +18,42 @@ SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 WHATSAPP_TOKEN = os.getenv("WHATSAPP_TOKEN")
 WHATSAPP_PHONE_NUMBER_ID = os.getenv("WHATSAPP_PHONE_NUMBER_ID")
 
+# Barberos estáticos con info básica
 BARBEROS = {
     "1": {"nombre": "Sebastian", "telefono": "50672314147"},
     "2": {"nombre": "Barbero 2", "telefono": "50600000000"},
     "3": {"nombre": "Barbero 3", "telefono": "50600000000"}
 }
+
+# Inicializar barberos en Supabase
+def inicializar_barberos():
+    """Crear registros de barberos en Supabase si no existen"""
+    try:
+        for b_id, info in BARBEROS.items():
+            # Verificar si el barbero ya existe
+            res = requests.get(
+                f"{SUPABASE_URL}/rest/v1/barberos?id=eq.{b_id}",
+                headers=_headers()
+            )
+            if res.status_code == 200 and res.json():
+                continue  # Ya existe
+            
+            # Crear nuevo barbero
+            data = {
+                "id": int(b_id),
+                "nombre": info["nombre"],
+                "activo": True,
+                "disponible_hoy": True,
+                "created_at": datetime.now(TZ).isoformat()
+            }
+            requests.post(
+                f"{SUPABASE_URL}/rest/v1/barberos",
+                headers=_headers(),
+                json=data
+            )
+        print("Barberos inicializados correctamente")
+    except Exception as e:
+        print(f"Error inicializando barberos: {e}")
 
 SERVICIOS = {
     "Corte de cabello": {"precio": 5000, "duracion": 30},
@@ -42,6 +75,49 @@ MESES_2026 = {
     "11": "Noviembre",
     "12": "Diciembre",
 }
+
+# ============ FUNCIONES AUXILIARES ============
+
+def obtener_barbero_info(barbero_id):
+    """Obtener información del barbero desde Supabase"""
+    try:
+        res = requests.get(
+            f"{SUPABASE_URL}/rest/v1/barberos?id=eq.{barbero_id}",
+            headers=_headers()
+        )
+        if res.status_code == 200:
+            data = res.json()
+            if data:
+                return data[0]
+    except:
+        pass
+    return None
+
+
+def barbero_disponible_hoy(barbero_id):
+    """Verificar si el barbero está disponible hoy"""
+    barbero = obtener_barbero_info(barbero_id)
+    if not barbero:
+        return False
+    
+    activo = barbero.get("activo", False)
+    disponible_hoy = barbero.get("disponible_hoy", False)
+    
+    return activo and disponible_hoy
+
+
+def obtener_todos_barberos():
+    """Obtener info de todos los barberos desde Supabase"""
+    try:
+        res = requests.get(
+            f"{SUPABASE_URL}/rest/v1/barberos?order=id.asc",
+            headers=_headers()
+        )
+        if res.status_code == 200:
+            return res.json()
+    except:
+        pass
+    return []
 
 
 def _headers():
@@ -150,10 +226,26 @@ def index():
     hoy = datetime.now(TZ).strftime("%Y-%m-%d")
     c_id = request.cookies.get("cliente_id") or str(uuid.uuid4())
 
+    # Obtener barberos desde Supabase
+    barberos_info = obtener_todos_barberos()
+    
+    # Filtrar solo barberos activos y disponibles hoy
+    barberos_disponibles = {}
+    for barbero in barberos_info:
+        bid = str(barbero.get("id"))
+        if barbero.get("activo") and barbero.get("disponible_hoy"):
+            # Obtener nombre del diccionario BARBEROS
+            nombre = BARBEROS.get(bid, {}).get("nombre", barbero.get("nombre", "Barbero"))
+            barberos_disponibles[bid] = {"nombre": nombre, "telefono": BARBEROS.get(bid, {}).get("telefono", "")}
+    
+    # Si no hay barberos disponibles, mostrar mensaje
+    if not barberos_disponibles:
+        barberos_disponibles = BARBEROS  # Fallback al diccionario original si hay problema
+
     resp = make_response(
         render_template(
             "index.html",
-            barberos=BARBEROS,
+            barberos=barberos_disponibles,
             servicios=SERVICIOS,
             hoy_iso=hoy,
             cliente_id=c_id
@@ -215,7 +307,9 @@ def agendar():
             "fecha": fecha,
             "hora": hora_db,
             "barbero_id": int(barbero_id),
-            "estado": "pendiente"
+            "estado": "pendiente",
+            "origen": "online",
+            "recordatorio_30_enviado": False
         }
 
         r = requests.post(f"{SUPABASE_URL}/rest/v1/citas", headers=_headers(), json=data)
@@ -272,6 +366,11 @@ def horas():
 
     if servicio not in SERVICIOS:
         return jsonify([])
+
+    # Verificar si el barbero está disponible hoy
+    if fecha == datetime.now(TZ).strftime("%Y-%m-%d"):
+        if not barbero_disponible_hoy(barbero_id):
+            return jsonify([])
 
     duracion_nueva = calcular_duracion(servicio)
     citas = obtener_citas_barbero_fecha(barbero_id, fecha)
@@ -512,22 +611,270 @@ def cancelar_barbero():
 
 @app.route("/dueno")
 def panel_dueno():
-    url = f"{SUPABASE_URL}/rest/v1/citas?order=fecha.asc,hora.asc"
+    """Panel administrativo único para ver y gestionar los 3 barberos"""
+    hoy = datetime.now(TZ).strftime("%Y-%m-%d")
+    
+    # Obtener todas las citas del día
+    url = f"{SUPABASE_URL}/rest/v1/citas?fecha=eq.{hoy}&order=hora.asc"
     res = requests.get(url, headers=_headers())
-
+    
     try:
-        citas = res.json()
-        citas = citas if isinstance(citas, list) else []
+        citas_hoy = res.json() if res.status_code == 200 else []
+        citas_hoy = citas_hoy if isinstance(citas_hoy, list) else []
     except:
-        citas = []
-
-    for cita in citas:
+        citas_hoy = []
+    
+    # Obtener información de barberos
+    barberos_info = obtener_todos_barberos()
+    barberos_dict = {str(b.get("id")): b for b in barberos_info}
+    
+    # Enriquecer citas con información del barbero
+    for cita in citas_hoy:
+        if str(cita.get("estado", "")).lower() == "cancelada":
+            continue
+        
         barbero_id = str(cita.get("barbero_id", ""))
-        cita["barbero_nombre"] = BARBEROS.get(barbero_id, {}).get("nombre", "Sin asignar")
+        cita["barbero_nombre"] = barberos_dict.get(barbero_id, {}).get("nombre", "Sin asignar")
+        cita["barbero_activo"] = barberos_dict.get(barbero_id, {}).get("activo", False)
         cita["precio"] = calcular_precio(cita.get("servicio", ""))
         cita["hora_formateada"] = formatear_hora(cita.get("hora"))
+        cita["origen"] = cita.get("origen", "online")
+        cita["tipo_visual"] = "online" if cita.get("origen") == "online" else "manual"
+    
+    # Filtrar solo citas activas para la vista
+    citas_activas = [c for c in citas_hoy if str(c.get("estado", "")).lower() != "cancelada"]
+    
+    # Agrupar por barbero
+    citas_por_barbero = {}
+    for cita in citas_activas:
+        bid = str(cita.get("barbero_id", ""))
+        if bid not in citas_por_barbero:
+            citas_por_barbero[bid] = []
+        citas_por_barbero[bid].append(cita)
+    
+    # Calcular estadísticas por barbero
+    stats = {}
+    for barbero in barberos_info:
+        bid = str(barbero.get("id"))
+        citas = citas_por_barbero.get(bid, [])
+        atendidas = [c for c in citas if str(c.get("estado", "")).lower() == "atendida"]
+        ganancia = sum(calcular_precio(c.get("servicio", "")) for c in atendidas)
+        
+        stats[bid] = {
+            "nombre": barbero.get("nombre"),
+            "total": len(citas),
+            "ganancia": ganancia,
+            "activo": barbero.get("activo", False),
+            "disponible_hoy": barbero.get("disponible_hoy", False),
+            "citas": citas
+        }
+    
+    return render_template(
+        "panel_admin.html",
+        stats=stats,
+        barberos_info=barberos_info,
+        citas_activas=citas_activas,
+        servicios=SERVICIOS,
+        hoy=hoy
+    )
 
-    return render_template("citas.html", citas=citas)
+
+# ============ RUTAS DEL PANEL ADMINISTRATIVO ============
+
+@app.route("/api/barbero/<barbero_id>/toggle_disponibilidad", methods=["POST"])
+def toggle_disponibilidad(barbero_id):
+    """Activar/desactivar disponibilidad del barbero para hoy"""
+    try:
+        barbero = obtener_barbero_info(barbero_id)
+        if not barbero:
+            return jsonify({"error": "Barbero no encontrado"}), 404
+        
+        nuevo_estado = not barbero.get("disponible_hoy", False)
+        
+        res = requests.patch(
+            f"{SUPABASE_URL}/rest/v1/barberos?id=eq.{barbero_id}",
+            headers=_headers(),
+            json={"disponible_hoy": nuevo_estado}
+        )
+        
+        if res.status_code in [200, 204]:
+            return jsonify({
+                "success": True,
+                "disponible_hoy": nuevo_estado,
+                "mensaje": "Disponibilidad actualizada"
+            })
+        else:
+            return jsonify({"error": "No se pudo actualizar"}), 500
+    except Exception as e:
+        print(f"Error toggle_disponibilidad: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/barbero/<barbero_id>/toggle_activo", methods=["POST"])
+def toggle_activo(barbero_id):
+    """Activar/desactivar barbero (actividad general)"""
+    try:
+        barbero = obtener_barbero_info(barbero_id)
+        if not barbero:
+            return jsonify({"error": "Barbero no encontrado"}), 404
+        
+        nuevo_estado = not barbero.get("activo", False)
+        
+        res = requests.patch(
+            f"{SUPABASE_URL}/rest/v1/barberos?id=eq.{barbero_id}",
+            headers=_headers(),
+            json={"activo": nuevo_estado}
+        )
+        
+        if res.status_code in [200, 204]:
+            return jsonify({
+                "success": True,
+                "activo": nuevo_estado,
+                "mensaje": "Estado actualizado"
+            })
+        else:
+            return jsonify({"error": "No se pudo actualizar"}), 500
+    except Exception as e:
+        print(f"Error toggle_activo: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/cita_manual", methods=["POST"])
+def crear_cita_manual():
+    """Crear una cita manual o bloqueo de horario desde el panel"""
+    try:
+        barbero_id = request.json.get("barbero_id", "").strip()
+        fecha = request.json.get("fecha", "").strip()
+        hora = request.json.get("hora", "").strip()
+        servicio = request.json.get("servicio", "").strip()
+        cliente_nombre = request.json.get("cliente_nombre", "Cliente presencial").strip()
+        observacion = request.json.get("observacion", "").strip()
+
+        if not all([barbero_id, fecha, hora]):
+            return jsonify({"error": "Faltan datos requeridos"}), 400
+
+        if barbero_id not in BARBEROS:
+            return jsonify({"error": "Barbero no válido"}), 400
+
+        # Validar que no sea fecha pasada
+        hoy_cr = datetime.now(TZ).strftime("%Y-%m-%d")
+        if fecha < hoy_cr:
+            return jsonify({"error": "No se puede agendar en fecha pasada"}), 400
+
+        # Verificar conflictos de horario
+        citas_existentes = obtener_citas_barbero_fecha(barbero_id, fecha)
+        duracion_nueva = calcular_duracion(servicio) if servicio else 30
+
+        for cita in citas_existentes:
+            if str(cita.get("estado", "")).lower() == "cancelada":
+                continue
+
+            if hora_choque(hora, duracion_nueva, str(cita.get("hora")), calcular_duracion(cita.get("servicio", ""))):
+                return jsonify({"error": "Hay conflicto con otra cita en ese horario"}), 409
+
+        # Convertir hora
+        hora_db = datetime.strptime(hora.upper(), "%I:%M%p").strftime("%H:%M:%S")
+
+        # Crear cita manual
+        data = {
+            "cliente_nombre": cliente_nombre,
+            "cliente_telefono": "",
+            "servicio": servicio or "Bloqueo manual",
+            "fecha": fecha,
+            "hora": hora_db,
+            "barbero_id": int(barbero_id),
+            "estado": "pendiente",
+            "origen": "manual",
+            "observacion": observacion,
+            "recordatorio_30_enviado": True  # No enviar recordatorio para citas manuales
+        }
+
+        res = requests.post(f"{SUPABASE_URL}/rest/v1/citas", headers=_headers(), json=data)
+
+        if res.status_code in [200, 201]:
+            return jsonify({
+                "success": True,
+                "mensaje": "Cita manual creada correctamente"
+            })
+        else:
+            print(f"Error Supabase: {res.status_code} - {res.text}")
+            return jsonify({"error": "No se pudo crear la cita"}), 500
+
+    except Exception as e:
+        print(f"Error crear_cita_manual: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/recordatorios", methods=["POST"])
+def procesar_recordatorios():
+    """Procesar y enviar recordatorios automáticos 30 minutos antes"""
+    try:
+        ahora = datetime.now(TZ)
+        ventana_inicio = ahora + timedelta(minutes=25)
+        ventana_fin = ahora + timedelta(minutes=35)
+
+        # Obtener todas las citas pendientes para hoy
+        hoy = ahora.strftime("%Y-%m-%d")
+        url = f"{SUPABASE_URL}/rest/v1/citas?fecha=eq.{hoy}&estado=eq.pendiente&recordatorio_30_enviado=eq.false"
+        res = requests.get(url, headers=_headers())
+
+        if res.status_code != 200:
+            return jsonify({"error": "No se pudo obtener citas"}), 500
+
+        citas = res.json() if isinstance(res.json(), list) else []
+        recordatorios_enviados = 0
+
+        for cita in citas:
+            # Solo enviar recordatorio a citas online
+            if cita.get("origen") != "online":
+                continue
+
+            hora_str = cita.get("hora", "")
+            try:
+                hora_cita = datetime.strptime(hora_str, "%H:%M:%S").time()
+                hora_cita_dt = datetime.combine(datetime.strptime(hoy, "%Y-%m-%d").date(), hora_cita)
+                hora_cita_dt = TZ.localize(hora_cita_dt)
+            except:
+                continue
+
+            # Verificar si está dentro de la ventana de 30 minutos
+            if ventana_inicio <= hora_cita_dt <= ventana_fin:
+                cliente_telefono = cita.get("cliente_telefono", "")
+                cliente_nombre = cita.get("cliente_nombre", "")
+                hora_formateada = formatear_hora(hora_cita)
+
+                if cliente_telefono:
+                    mensaje = (
+                        f"Hola, te recordamos que tienes una cita agendada en la barbería "
+                        f"hoy a las {hora_formateada}. Te esperamos."
+                    )
+
+                    enviar_whatsapp_texto(cliente_telefono, mensaje)
+                    recordatorios_enviados += 1
+
+                    # Marcar como enviado
+                    try:
+                        requests.patch(
+                            f"{SUPABASE_URL}/rest/v1/citas?id=eq.{cita.get('id')}",
+                            headers=_headers(),
+                            json={
+                                "recordatorio_30_enviado": True,
+                                "fecha_recordatorio_30": datetime.now(TZ).isoformat()
+                            }
+                        )
+                    except:
+                        pass
+
+        return jsonify({
+            "success": True,
+            "recordatorios_enviados": recordatorios_enviados
+        })
+
+    except Exception as e:
+        print(f"Error procesar_recordatorios: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/webhook", methods=["GET"])
 def verify_webhook():
     mode = request.args.get("hub.mode")
@@ -547,6 +894,77 @@ def recibir_webhook():
     return "EVENT_RECEIVED", 200
 
 
+# ============ TAREA AUTOMÁTICA DE RECORDATORIOS ============
+
+def tarea_recordatorios_automaticos():
+    """Ejecutar recordatorios automáticos cada cierto tiempo"""
+    while True:
+        try:
+            ahora = datetime.now(TZ)
+            
+            # Solo procesar entre 8am y 7pm
+            if 8 <= ahora.hour < 19:
+                with app.app_context():
+                    # Llamar a la función de recordatorios
+                    ahora = datetime.now(TZ)
+                    ventana_inicio = ahora + timedelta(minutes=25)
+                    ventana_fin = ahora + timedelta(minutes=35)
+
+                    hoy = ahora.strftime("%Y-%m-%d")
+                    url = f"{SUPABASE_URL}/rest/v1/citas?fecha=eq.{hoy}&estado=eq.pendiente&recordatorio_30_enviado=eq.false"
+                    res = requests.get(url, headers=_headers())
+
+                    if res.status_code == 200:
+                        citas = res.json() if isinstance(res.json(), list) else []
+
+                        for cita in citas:
+                            if cita.get("origen") != "online":
+                                continue
+
+                            hora_str = cita.get("hora", "")
+                            try:
+                                hora_cita = datetime.strptime(hora_str, "%H:%M:%S").time()
+                                hora_cita_dt = datetime.combine(datetime.strptime(hoy, "%Y-%m-%d").date(), hora_cita)
+                                hora_cita_dt = TZ.localize(hora_cita_dt)
+                            except:
+                                continue
+
+                            if ventana_inicio <= hora_cita_dt <= ventana_fin:
+                                cliente_telefono = cita.get("cliente_telefono", "")
+                                if cliente_telefono:
+                                    hora_formateada = formatear_hora(hora_cita)
+                                    mensaje = (
+                                        f"Hola, te recordamos que tienes una cita agendada en la barbería "
+                                        f"hoy a las {hora_formateada}. Te esperamos."
+                                    )
+                                    enviar_whatsapp_texto(cliente_telefono, mensaje)
+
+                                    try:
+                                        requests.patch(
+                                            f"{SUPABASE_URL}/rest/v1/citas?id=eq.{cita.get('id')}",
+                                            headers=_headers(),
+                                            json={
+                                                "recordatorio_30_enviado": True,
+                                                "fecha_recordatorio_30": datetime.now(TZ).isoformat()
+                                            }
+                                        )
+                                    except:
+                                        pass
+        except Exception as e:
+            print(f"Error en tarea_recordatorios_automaticos: {e}")
+
+        # Esperar 2 minutos antes de la siguiente ejecución
+        time.sleep(120)
+
+
 if __name__ == "__main__":
+    # Inicializar barberos al iniciar
+    inicializar_barberos()
+    
+    # Iniciar tarea de recordatorios en un hilo separado
+    hilo_recordatorios = threading.Thread(target=tarea_recordatorios_automaticos, daemon=True)
+    hilo_recordatorios.start()
+    
     app.run(debug=True)
+
 

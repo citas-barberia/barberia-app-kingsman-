@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel Administrativo - Barbería</title>
+    <style>
+        * { box-sizing: border-box; }
+        
+        body {
+            background: #0f0f10;
+            color: #fff;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            margin: 0;
+            padding: 15px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: auto;
+        }
+
+        h1 {
+            color: #d4af37;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 28px;
+            text-transform: uppercase;
+        }
+
+        .resumen {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .resumen-card {
+            background: #1b1b1c;
+            padding: 20px;
+            border-radius: 12px;
+            border-left: 4px solid #d4af37;
+            text-align: center;
+        }
+
+        .resumen-card h3 {
+            margin: 0 0 10px 0;
+            color: #bbb;
+            font-size: 12px;
+            text-transform: uppercase;
+        }
+
+        .resumen-card .valor {
+            font-size: 28px;
+            font-weight: bold;
+            color: #d4af37;
+        }
+
+        .filtros {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .filtros button {
+            padding: 10px 15px;
+            border: none;
+            border-radius: 8px;
+            background: #2b2b2d;
+            color: #fff;
+            cursor: pointer;
+            font-weight: bold;
+            transition: 0.3s;
+        }
+
+        .filtros button.activo {
+            background: #d4af37;
+            color: #000;
+        }
+
+        .barberos-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .barbero-card {
+            background: #1b1b1c;
+            border: 1px solid #2a2a2a;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        }
+
+        .barbero-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #2a2a2a;
+            padding-bottom: 15px;
+        }
+
+        .barbero-nombre {
+            font-size: 18px;
+            font-weight: bold;
+            color: #d4af37;
+        }
+
+        .barbero-estado {
+            display: flex;
+            gap: 10px;
+        }
+
+        .badge {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .badge-activo {
+            background: #14532d;
+            color: #fff;
+        }
+
+        .badge-inactivo {
+            background: #7f1d1d;
+            color: #fff;
+        }
+
+        .badge-disponible {
+            background: #1e40af;
+            color: #fff;
+        }
+
+        .badge-no-disponible {
+            background: #6b7280;
+            color: #fff;
+        }
+
+        .barbero-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .stat-mini {
+            background: #242425;
+            padding: 10px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .stat-mini label {
+            display: block;
+            font-size: 11px;
+            color: #aaa;
+            margin-bottom: 5px;
+        }
+
+        .stat-mini .valor {
+            font-size: 20px;
+            font-weight: bold;
+            color: #d4af37;
+        }
+
+        .barbero-acciones {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+
+        .btn-accion {
+            flex: 1;
+            min-width: 140px;
+            padding: 10px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 12px;
+            text-transform: uppercase;
+            transition: 0.3s;
+        }
+
+        .btn-disponibilidad {
+            background: #1e40af;
+            color: #fff;
+        }
+
+        .btn-disponibilidad.activo {
+            background: #14532d;
+        }
+
+        .btn-estado {
+            background: #7f1d1d;
+            color: #fff;
+        }
+
+        .btn-estado.activo {
+            background: #14532d;
+        }
+
+        .citas-list {
+            background: #242425;
+            border-radius: 8px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .cita-item {
+            padding: 10px;
+            border-bottom: 1px solid #3a3a3b;
+            font-size: 13px;
+        }
+
+        .cita-item:last-child {
+            border-bottom: none;
+        }
+
+        .cita-hora {
+            color: #d4af37;
+            font-weight: bold;
+        }
+
+        .cita-cliente {
+            color: #bbb;
+        }
+
+        .cita-servicio {
+            color: #aaa;
+            font-size: 12px;
+        }
+
+        .cita-origen {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 10px;
+            margin-top: 4px;
+            font-weight: bold;
+        }
+
+        .cita-origen.online {
+            background: #1e40af;
+            color: #fff;
+        }
+
+        .cita-origen.manual {
+            background: #d97706;
+            color: #fff;
+        }
+
+        .cita-vacia {
+            padding: 15px;
+            text-align: center;
+            color: #666;
+            font-size: 12px;
+        }
+
+        .panel-crear {
+            background: #1b1b1c;
+            border: 1px solid #2a2a2a;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+
+        .panel-crear h2 {
+            color: #d4af37;
+            margin-top: 0;
+            font-size: 18px;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 12px;
+            margin-bottom: 15px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-group label {
+            font-size: 12px;
+            color: #d4af37;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            padding: 10px;
+            background: #242425;
+            border: 1px solid #3a3a3b;
+            border-radius: 6px;
+            color: #fff;
+            font-family: inherit;
+        }
+
+        .form-group textarea {
+            grid-column: 1 / -1;
+            min-height: 60px;
+            resize: vertical;
+        }
+
+        .btn-crear {
+            width: 100%;
+            padding: 12px;
+            background: #d4af37;
+            color: #000;
+            border: none;
+            border-radius: 8px;
+            font-weight: bold;
+            font-size: 14px;
+            cursor: pointer;
+            text-transform: uppercase;
+            transition: 0.3s;
+        }
+
+        .btn-crear:hover {
+            background: #e5c158;
+        }
+
+        .mensaje {
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            font-weight: bold;
+            text-align: center;
+        }
+
+        .mensaje.exito {
+            background: #14532d;
+            color: #fff;
+        }
+
+        .mensaje.error {
+            background: #7f1d1d;
+            color: #fff;
+        }
+
+        .actualiza-info {
+            text-align: center;
+            color: #666;
+            font-size: 12px;
+            margin-top: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .barberos-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .resumen {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>💈 Panel Administrativo - Barbería</h1>
+
+    <div id="mensaje-container"></div>
+
+    <div class="filtros">
+        <button class="activo" onclick="filtrarVista('todos')">Todos los Barberos</button>
+        <button onclick="filtrarVista('solo-activos')">Solo Activos</button>
+    </div>
+
+    <!-- Resumen General -->
+    <div class="resumen">
+        <div class="resumen-card">
+            <h3>Citas Hoy</h3>
+            <div class="valor" id="total-citas">0</div>
+        </div>
+        <div class="resumen-card">
+            <h3>Ganancia Hoy</h3>
+            <div class="valor">₡<span id="total-ganancia">0</span></div>
+        </div>
+        <div class="resumen-card">
+            <h3>Barberos Activos</h3>
+            <div class="valor" id="barberos-activos">0</div>
+        </div>
+        <div class="resumen-card">
+            <h3>Barberos Disponibles Hoy</h3>
+            <div class="valor" id="barberos-disponibles">0</div>
+        </div>
+    </div>
+
+    <!-- Panel para crear cita manual -->
+    <div class="panel-crear">
+        <h2>➕ Crear Cita Manual / Bloqueo de Horario</h2>
+        
+        <div class="form-grid">
+            <div class="form-group">
+                <label>Barbero:</label>
+                <select id="barbero_manual" required>
+                    <option value="">Selecciona barbero</option>
+                    {% for barbero in barberos_info %}
+                    <option value="{{ barbero.id }}">{{ barbero.nombre }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Fecha:</label>
+                <input type="date" id="fecha_manual" value="{{ hoy }}" min="{{ hoy }}" required>
+            </div>
+
+            <div class="form-group">
+                <label>Hora:</label>
+                <input type="time" id="hora_manual" required>
+            </div>
+
+            <div class="form-group">
+                <label>Servicio (opcional):</label>
+                <select id="servicio_manual">
+                    <option value="">Sin servicio</option>
+                    {% for nombre in servicios.keys() %}
+                    <option value="{{ nombre }}">{{ nombre }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Nombre Cliente:</label>
+                <input type="text" id="cliente_manual" placeholder="Cliente presencial" value="Cliente presencial">
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>Observación (opcional):</label>
+            <textarea id="observacion_manual" placeholder="Notas adicionales..."></textarea>
+        </div>
+
+        <button class="btn-crear" onclick="crearCitaManual()">Crear Cita Manual</button>
+    </div>
+
+    <!-- Tarjetas de Barberos -->
+    <div class="barberos-grid" id="barberos-container">
+        {% for barbero in barberos_info %}
+        <div class="barbero-card" id="barbero-{{ barbero.id }}">
+            <div class="barbero-header">
+                <div class="barbero-nombre">{{ barbero.nombre }}</div>
+                <div class="barbero-estado">
+                    <span class="badge {% if barbero.activo %}badge-activo{% else %}badge-inactivo{% endif %}" id="estado-{{ barbero.id }}">
+                        {% if barbero.activo %}Activo{% else %}Inactivo{% endif %}
+                    </span>
+                    <span class="badge {% if barbero.disponible_hoy %}badge-disponible{% else %}badge-no-disponible{% endif %}" id="disponible-{{ barbero.id }}">
+                        {% if barbero.disponible_hoy %}Disponible Hoy{% else %}No Disponible{% endif %}
+                    </span>
+                </div>
+            </div>
+
+            <div class="barbero-acciones">
+                <button class="btn-accion btn-disponibilidad {% if barbero.disponible_hoy %}activo{% endif %}" 
+                    data-barbero-id="{{ barbero.id }}" data-action="toggle-disponibilidad">
+                    {% if barbero.disponible_hoy %}✓ Disponible Hoy{% else %}✗ No Disponible{% endif %}
+                </button>
+                <button class="btn-accion btn-estado {% if barbero.activo %}activo{% endif %}" 
+                    data-barbero-id="{{ barbero.id }}" data-action="toggle-activo">
+                    {% if barbero.activo %}✓ Activo{% else %}✗ Inactivo{% endif %}
+                </button>
+            </div>
+
+            <div class="barbero-stats">
+                <div class="stat-mini">
+                    <label>Citas Hoy</label>
+                    <div class="valor" id="citas-{{ barbero.id }}">{{ stats[str(barbero.id)].total }}</div>
+                </div>
+                <div class="stat-mini">
+                    <label>Ganancia</label>
+                    <div class="valor">₡{{ stats[str(barbero.id)].ganancia }}</div>
+                </div>
+            </div>
+
+            <div class="citas-list">
+                {% set citas_barbero = stats[str(barbero.id)].citas %}
+                {% if citas_barbero %}
+                    {% for cita in citas_barbero %}
+                    <div class="cita-item">
+                        <div class="cita-hora">{{ cita.hora_formateada }}</div>
+                        <div class="cita-cliente">👤 {{ cita.cliente_nombre }}</div>
+                        <div class="cita-servicio">📋 {{ cita.servicio }}</div>
+                        <span class="cita-origen {% if cita.origen == 'online' %}online{% else %}manual{% endif %}">
+                            {% if cita.origen == 'online' %}🌐 Online{% else %}📝 Manual{% endif %}
+                        </span>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="cita-vacia">Sin citas hoy</div>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="actualiza-info">
+        ℹ️ Este panel se actualiza automáticamente. Los recordatorios se envían 30 minutos antes de cada cita.
+    </div>
+</div>
+
+<script>
+let vistaActual = 'todos';
+
+function mostrarMensaje(texto, tipo) {
+    const container = document.getElementById('mensaje-container');
+    const div = document.createElement('div');
+    div.className = `mensaje ${tipo}`;
+    div.textContent = texto;
+    container.appendChild(div);
+    
+    setTimeout(() => div.remove(), 3000);
+}
+
+function filtrarVista(vista) {
+    vistaActual = vista;
+    document.querySelectorAll('.filtros button').forEach(btn => {
+        btn.classList.remove('activo');
+    });
+    event.target.classList.add('activo');
+}
+
+async function toggleDisponibilidad(barberoId) {
+    try {
+        const response = await fetch(`/api/barbero/${barberoId}/toggle_disponibilidad`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            mostrarMensaje('Disponibilidad actualizada', 'exito');
+            location.reload();
+        } else {
+            mostrarMensaje('Error: ' + (data.error || 'No se pudo actualizar'), 'error');
+        }
+    } catch (error) {
+        mostrarMensaje('Error: ' + error.message, 'error');
+    }
+}
+
+async function toggleActivo(barberoId) {
+    try {
+        const response = await fetch(`/api/barbero/${barberoId}/toggle_activo`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            mostrarMensaje('Estado actualizado', 'exito');
+            location.reload();
+        } else {
+            mostrarMensaje('Error: ' + (data.error || 'No se pudo actualizar'), 'error');
+        }
+    } catch (error) {
+        mostrarMensaje('Error: ' + error.message, 'error');
+    }
+}
+
+async function crearCitaManual() {
+    const barbero_id = document.getElementById('barbero_manual').value;
+    const fecha = document.getElementById('fecha_manual').value;
+    const hora = document.getElementById('hora_manual').value;
+    const servicio = document.getElementById('servicio_manual').value;
+    const cliente_nombre = document.getElementById('cliente_manual').value;
+    const observacion = document.getElementById('observacion_manual').value;
+
+    if (!barbero_id || !fecha || !hora) {
+        mostrarMensaje('Por favor completa los campos requeridos', 'error');
+        return;
+    }
+
+    const [horas, minutos] = hora.split(':');
+    let horas_num = parseInt(horas);
+    const ampm = horas_num >= 12 ? 'pm' : 'am';
+    horas_num = horas_num % 12 || 12;
+    const hora_formateada = `${String(horas_num).padStart(2, '0')}:${minutos}${ampm}`;
+
+    try {
+        const response = await fetch('/api/cita_manual', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                barbero_id: barbero_id,
+                fecha: fecha,
+                hora: hora_formateada,
+                servicio: servicio,
+                cliente_nombre: cliente_nombre,
+                observacion: observacion
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            mostrarMensaje('Cita manual creada correctamente', 'exito');
+            document.getElementById('barbero_manual').value = '';
+            document.getElementById('hora_manual').value = '';
+            document.getElementById('observacion_manual').value = '';
+            setTimeout(() => location.reload(), 2000);
+        } else {
+            mostrarMensaje('Error: ' + (data.error || 'No se pudo crear'), 'error');
+        }
+    } catch (error) {
+        mostrarMensaje('Error: ' + error.message, 'error');
+    }
+}
+
+// Event listeners para botones de acciones de barberos
+document.addEventListener('DOMContentLoaded', () => {
+    // Botones de toggle
+    document.querySelectorAll('[data-action="toggle-disponibilidad"]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const barberoId = btn.getAttribute('data-barbero-id');
+            toggleDisponibilidad(barberoId);
+        });
+    });
+
+    document.querySelectorAll('[data-action="toggle-activo"]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const barberoId = btn.getAttribute('data-barbero-id');
+            toggleActivo(barberoId);
+        });
+    });
+
+    // Actualizar resumen inicial
+    actualizarResumen();
+});
+
+function actualizarResumen() {
+    let totalCitas = 0;
+    let totalGanancia = 0;
+    let barberosActivos = 0;
+    let barberosDisponibles = 0;
+
+    document.querySelectorAll('.barbero-stats').forEach((stats) => {
+        const card = stats.closest('.barbero-card');
+        const citasElement = card.querySelector('[id^="citas-"]');
+        const citas = citasElement ? parseInt(citasElement.textContent) || 0 : 0;
+        totalCitas += citas;
+
+        const gananciaElement = card.querySelector('.stat-mini:nth-child(2) .valor');
+        const ganancia = gananciaElement ? parseInt(gananciaElement.textContent) || 0 : 0;
+        totalGanancia += ganancia;
+    });
+
+    document.querySelectorAll('.barbero-estado').forEach((estado) => {
+        if (estado.querySelector('.badge-activo')) {
+            barberosActivos++;
+        }
+        if (estado.querySelector('.badge-disponible')) {
+            barberosDisponibles++;
+        }
+    });
+
+    const totalCitasEl = document.getElementById('total-citas');
+    const totalGananciaEl = document.getElementById('total-ganancia');
+    const barberosActivosEl = document.getElementById('barberos-activos');
+    const barberosDisponiblesEl = document.getElementById('barberos-disponibles');
+
+    if (totalCitasEl) totalCitasEl.textContent = totalCitas;
+    if (totalGananciaEl) totalGananciaEl.textContent = totalGanancia;
+    if (barberosActivosEl) barberosActivosEl.textContent = barberosActivos;
+    if (barberosDisponiblesEl) barberosDisponiblesEl.textContent = barberosDisponibles;
+}
+
+// Actualizar resumen cada 30 segundos
+setInterval(actualizarResumen, 30000);
+</script>
+
+</body>
+</html>
