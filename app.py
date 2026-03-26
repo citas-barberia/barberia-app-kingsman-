@@ -25,9 +25,9 @@ WHATSAPP_TOKEN = os.getenv("WHATSAPP_TOKEN")
 WHATSAPP_PHONE_NUMBER_ID = os.getenv("WHATSAPP_PHONE_NUMBER_ID")
 
 BARBEROS = {
-    "1": {"nombre": "Sebastian", "telefono": "50670694753"},
-    "2": {"nombre": "Barbero 2", "telefono": "50670694753"},
-    "3": {"nombre": "Barbero 3", "telefono": "50670694753"}
+    "1": {"nombre": "Sebastian", "telefono": "50672314147"},
+    "2": {"nombre": "Barbero 2", "telefono": "50672314147"},
+    "3": {"nombre": "Barbero 3", "telefono": "50672314147"}
 }
 
 SERVICIOS = {
