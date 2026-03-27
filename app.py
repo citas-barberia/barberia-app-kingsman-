@@ -227,12 +227,12 @@ def index():
 
     barberos_info = obtener_todos_barberos()
 
-    barberos_disponibles = {}
+    barberos_visibles = {}
     for barbero in barberos_info:
         bid = str(barbero.get("id"))
-        if barbero.get("activo") and barbero.get("disponible_hoy"):
+        if barbero.get("activo"):
             nombre = BARBEROS.get(bid, {}).get("nombre", barbero.get("nombre", "Barbero"))
-            barberos_disponibles[bid] = {
+            barberos_visibles[bid] = {
                 "nombre": nombre,
                 "telefono": BARBEROS.get(bid, {}).get("telefono", "")
             }
@@ -240,7 +240,7 @@ def index():
     resp = make_response(
         render_template(
             "index.html",
-            barberos=barberos_disponibles,
+            barberos=barberos_visibles,
             servicios=SERVICIOS,
             hoy_iso=hoy,
             cliente_id=c_id
