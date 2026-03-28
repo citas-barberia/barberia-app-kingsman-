@@ -437,6 +437,42 @@
                 font-size: 38px;
             }
         }
+        .cita-botones {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+    flex-wrap: wrap;
+}
+
+.btn-cita {
+    border: none;
+    border-radius: 10px;
+    padding: 8px 12px;
+    font-size: 12px;
+    font-weight: 800;
+    cursor: pointer;
+    color: #fff;
+}
+
+.btn-atendida {
+    background: #16a34a;
+}
+
+.btn-cancelar {
+    background: #dc2626;
+}
+
+.badge-atendida {
+    display: inline-flex;
+    align-items: center;
+    padding: 6px 10px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 800;
+    background: rgba(22, 163, 74, 0.18);
+    color: #86efac;
+    border: 1px solid rgba(22, 163, 74, 0.35);
+}
     </style>
 </head>
 <body>
@@ -525,9 +561,7 @@
                 <div class="barbero-nombre">{{ barbero.nombre }}</div>
 
                 <div class="badges">
-                    <span class="badge {% if barbero.activo %}badge-activo{% else %}badge-inactivo{% endif %}">
-                        {% if barbero.activo %}ACTIVO{% else %}INACTIVO{% endif %}
-                    </span>
+                    
                     <span class="badge {% if barbero.disponible_hoy %}badge-disponible{% else %}badge-no-disponible{% endif %}">
                         {% if barbero.disponible_hoy %}DISPONIBLE{% else %}NO DISPONIBLE{% endif %}
                     </span>
@@ -541,11 +575,7 @@
                     {% if barbero.disponible_hoy %}✓ DISPONIBLE{% else %}X NO DISPONIBLE{% endif %}
                 </button>
 
-                <button type="button"
-                        class="btn-accion btn-estado {% if not barbero.activo %}off{% endif %}"
-                        onclick="toggleActivo('{{ barbero.id }}',this)">
-                    {% if barbero.activo %}✓ ACTIVO{% else %}X INACTIVO{% endif %}
-                </button>
+                
             </div>
 
             <div class="barbero-stats">
@@ -564,39 +594,52 @@
                     <div class="valor">{{ datos.get('canceladas_total', 0) }}</div>
                 </div>
 
-                <div class="stat-mini">
-                    <div class="label">Estado</div>
-                    <div class="valor" style="font-size: 18px;">
-                        {% if datos.get('activo', False) %}
-                            Activo
-                        {% else %}
-                            Inactivo
-                        {% endif %}
-                    </div>
-                </div>
+                
             </div>
 
             <div class="citas-list">
                 {% if citas %}
                     {% for cita in citas %}
-                    <div class="cita-item">
-                        <div class="cita-top">
-                            <div class="cita-hora">
-                                {% if vista_actual in ['semana', 'mes'] %}
-                                    {{ cita.fecha }} · {{ cita.hora_formateada }}
-                                {% else %}
-                                    {{ cita.hora_formateada }}
-                                {% endif %}
-                            </div>
+             <div class="cita-item">
+    <div class="cita-top">
+        <div class="cita-hora">
+            {% if vista_actual in ['semana', 'mes'] %}
+                {{ cita.fecha }} · {{ cita.hora_formateada }}
+            {% else %}
+                {{ cita.hora_formateada }}
+            {% endif %}
+        </div>
 
-                            <span class="cita-origen {% if cita.origen == 'online' %}online{% else %}manual{% endif %}">
-                                {% if cita.origen == 'online' %}Online{% else %}Manual{% endif %}
-                            </span>
-                        </div>
+        {% if cita.estado == 'atendida' %}
+            <span class="badge-atendida">ATENDIDA</span>
+        {% else %}
+            <span class="cita-origen {% if cita.origen == 'online' %}online{% else %}manual{% endif %}">
+                {% if cita.origen == 'online' %}Online{% else %}Manual{% endif %}
+            </span>
+        {% endif %}
+    </div>
 
-                        <div class="cita-cliente">{{ cita.cliente_nombre }}</div>
-                        <div class="cita-servicio">{{ cita.servicio }}</div>
-                    </div>
+    <div class="cita-cliente">{{ cita.cliente_nombre }}</div>
+    <div class="cita-servicio">{{ cita.servicio }}</div>
+
+    {% if cita.estado != 'atendida' and cita.estado != 'cancelada' %}
+    <div class="cita-botones">
+        <form method="POST" action="/atendida" style="margin:0;">
+            <input type="hidden" name="id" value="{{ cita.id }}">
+            <input type="hidden" name="barbero_id" value="{{ cita.barbero_id }}">
+            <input type="hidden" name="desde_dueno" value="1">
+            <button type="submit" class="btn-cita btn-atendida">Cita atendida</button>
+        </form>
+
+        <form method="POST" action="/cancelar_barbero" style="margin:0;">
+            <input type="hidden" name="id" value="{{ cita.id }}">
+            <input type="hidden" name="barbero_id" value="{{ cita.barbero_id }}">
+            <input type="hidden" name="desde_dueno" value="1">
+            <button type="submit" class="btn-cita btn-cancelar">Cancelar</button>
+        </form>
+    </div>
+    {% endif %}
+</div>
                     {% endfor %}
                 {% else %}
                     <div class="cita-vacia">{{ empty_text_panel }}</div>

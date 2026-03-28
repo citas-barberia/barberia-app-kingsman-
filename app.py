@@ -29,13 +29,20 @@ BARBEROS = {
     "2": {"nombre": "Barbero 2", "telefono": "50672314147"},
     "3": {"nombre": "Barbero 3", "telefono": "50672314147"}
 }
-
+ALIAS_SERVICIOS = {
+    "Corte de cabello": "Corte premium",
+    "Corte": "Corte premium",
+    "Corte + barba": "Corte y barba premium",
+    "Barba": "Barba premium",
+}
 SERVICIOS = {
     "Corte premium": {"precio": 6000, "duracion": 30},
+    "Corte de cabello": {"precio": 6000, "duracion": 30},
     "Corte y barba premium": {"precio": 11000, "duracion": 60},
     "Corte y marcado de barba": {"precio": 8000, "duracion": 60},
     "Barba premium": {"precio": 6000, "duracion": 30},
 }
+
 HORARIO_SEMANA = {"inicio": "10:00AM", "fin": "07:00PM"}
 HORARIO_SABADO = {"inicio": "09:00AM", "fin": "06:00PM"}
 
@@ -69,12 +76,16 @@ def normalizar_numero_cr(numero):
         return numero
     return f"506{numero}"
 
+def normalizar_servicio_nombre(servicio):
+    servicio = str(servicio).strip()
+    return ALIAS_SERVICIOS.get(servicio, servicio)
 
 def calcular_precio(servicio):
+    servicio = normalizar_servicio_nombre(servicio)
     return SERVICIOS.get(servicio, {}).get("precio", 0)
 
-
 def calcular_duracion(servicio):
+    servicio = normalizar_servicio_nombre(servicio)
     return SERVICIOS.get(servicio, {}).get("duracion", 30)
 
 
@@ -246,7 +257,8 @@ def index():
     barberos_visibles = {}
     for barbero in barberos_info:
         bid = str(barbero.get("id"))
-        if barbero.get("activo"):
+
+        if barbero.get("activo") and barbero.get("disponible_hoy"):
             nombre = BARBEROS.get(bid, {}).get("nombre", barbero.get("nombre", "Barbero"))
             barberos_visibles[bid] = {
                 "nombre": nombre,
@@ -272,7 +284,7 @@ def agendar():
         cliente = request.form.get("cliente", "").strip()
         cliente_telefono = request.form.get("cliente_telefono", "").strip()
         barbero_id = request.form.get("barbero_id", "").strip()
-        servicio = request.form.get("servicio", "").strip()
+        servicio = normalizar_servicio_nombre(request.form.get("servicio", "").strip())
         fecha = request.form.get("fecha", "").strip()
         hora = request.form.get("hora", "").strip()
 
@@ -282,6 +294,10 @@ def agendar():
 
         if barbero_id not in BARBEROS:
             flash("El barbero seleccionado no es válido.")
+            return redirect(url_for("index"))
+        
+        if fecha == datetime.now(TZ).strftime("%Y-%m-%d") and not barbero_disponible_hoy(barbero_id):
+            flash("Ese barbero no está disponible hoy.")
             return redirect(url_for("index"))
 
         if servicio not in SERVICIOS:
@@ -621,6 +637,7 @@ def panel_barbero(id_barbero):
 def atendida():
     cita_id = request.form.get("id")
     barbero_id = request.form.get("barbero_id")
+    desde_dueno = request.form.get("desde_dueno")
 
     if not cita_id:
         flash("No se encontró la cita.")
@@ -634,6 +651,10 @@ def atendida():
     )
 
     flash("Cita marcada como atendida.")
+
+    if desde_dueno == "1":
+        return redirect(url_for("panel_dueno"))
+
     return redirect(url_for("panel_barbero", id_barbero=barbero_id))
 
 
@@ -641,6 +662,7 @@ def atendida():
 def cancelar_barbero():
     cita_id = request.form.get("id")
     barbero_id = request.form.get("barbero_id")
+    desde_dueno = request.form.get("desde_dueno")
 
     if not cita_id:
         flash("No se encontró la cita.")
@@ -674,6 +696,10 @@ def cancelar_barbero():
             enviar_whatsapp_texto(cliente_telefono, mensaje_cliente)
 
     flash("Cita cancelada correctamente.")
+
+    if desde_dueno == "1":
+        return redirect(url_for("panel_dueno"))
+
     return redirect(url_for("panel_barbero", id_barbero=barbero_id))
 
 def obtener_rango_vista(vista):
@@ -938,17 +964,17 @@ def crear_cita_manual():
         hora_db = datetime.strptime(hora.upper(), "%I:%M%p").strftime("%H:%M:%S")
 
         data = {
-            "cliente_nombre": cliente_nombre,
-            "cliente_telefono": "",
-            "servicio": servicio if servicio else "Bloqueo manual",
-            "fecha": fecha,
-            "hora": hora_db,
-            "barbero_id": int(barbero_id),
-            "estado": "pendiente",
-            "origen": "manual",
-            "observacion": observacion,
-            "recordatorio_30_enviado": True
-        }
+    "cliente_nombre": cliente_nombre,
+    "cliente_telefono": "",
+    "servicio": servicio if servicio else "Bloqueo manual",
+    "fecha": fecha,
+    "hora": hora_db,
+    "barbero_id": int(barbero_id),
+    "estado": "atendida",
+    "origen": "manual",
+    "observacion": observacion,
+    "recordatorio_30_enviado": True
+}
 
         res = requests.post(
             f"{SUPABASE_URL}/rest/v1/citas",
