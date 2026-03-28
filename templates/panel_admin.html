@@ -444,159 +444,197 @@
 
     <div id="mensaje-container"></div>
 
-    <div class="topbar">
-        <div>
-            <h1>Panel Administrativo</h1>
-            <div class="subtitulo">Vista general de la barbería y citas de hoy</div>
-        </div>
-
-        <div class="filtros">
-            <button type="button" class="activo" onclick="filtrarVista('todos', this)">Todos</button>
-            <button type="button" onclick="filtrarVista('solo-activos', this)">Solo activos</button>
-        </div>
+  <div class="topbar">
+    <div>
+        <h1>{{ titulo_panel }}</h1>
+        <div class="subtitulo">{{ subtitulo_panel }}</div>
     </div>
 
-    <div class="resumen">
-        <div class="resumen-card">
-            <div class="label">Ganancia hoy</div>
-            <div class="valor">₡<span id="total-ganancia">0</span></div>
-        </div>
+    <div class="filtros">
+        <button
+            type="button"
+            class="{% if vista_actual == 'inicio' %}activo{% endif %}"
+            onclick="window.location.href='/dueno?vista=inicio'">
+            Inicio
+        </button>
 
-        <div class="resumen-card">
-            <div class="label">Barberos activos</div>
-            <div class="valor" id="barberos-activos">0</div>
-        </div>
+        <button
+            type="button"
+            onclick="window.location.href='/dueno/nueva-cita'">
+            Nueva cita
+        </button>
 
-        <div class="resumen-card">
-            <div class="label">Citas hoy</div>
-            <div class="valor" id="total-citas">0</div>
-        </div>
+        <button
+            type="button"
+            class="{% if vista_actual == 'manana' %}activo{% endif %}"
+            onclick="window.location.href='/dueno?vista=manana'">
+            Mañana
+        </button>
 
-        <div class="resumen-card">
-            <div class="label">Barberos disponibles hoy</div>
-            <div class="valor" id="barberos-disponibles">0</div>
-        </div>
+        <button
+            type="button"
+            class="{% if vista_actual == 'semana' %}activo{% endif %}"
+            onclick="window.location.href='/dueno?vista=semana'">
+            Semana
+        </button>
+
+        <button
+            type="button"
+            class="{% if vista_actual == 'mes' %}activo{% endif %}"
+            onclick="window.location.href='/dueno?vista=mes'">
+            Mes
+        </button>
+    </div>
+</div>
+<div class="resumen">
+    <div class="resumen-card">
+        <div class="label">Total citas</div>
+        <div class="valor">{{ resumen.total_citas }}</div>
     </div>
 
-    <div class="panel-crear">
-        <h2>Nueva cita manual</h2>
+    <div class="resumen-card">
+        <div class="label">Atendidas</div>
+        <div class="valor">{{ resumen.total_atendidas }}</div>
+    </div>
 
-        <div class="form-grid">
-            <div class="form-group">
-                <label for="barbero_manual">Barbero:</label>
-                <select id="barbero_manual">
-                    <option value="">Selecciona barbero</option>
-                    {% for barbero in barberos_info %}
-                    <option value="{{ barbero.id }}">{{ barbero.nombre }}</option>
+    <div class="resumen-card">
+        <div class="label">Canceladas</div>
+        <div class="valor">{{ resumen.total_canceladas }}</div>
+    </div>
+
+    <div class="resumen-card">
+        <div class="label">Ingresos</div>
+        <div class="valor">₡{{ resumen.total_ingresos }}</div>
+    </div>
+</div>
+
+<div class="barberos-grid">
+    {% for barbero in barberos_info %}
+        {% set bid = barbero.id|string %}
+        {% set datos = stats.get(bid, {}) %}
+        {% set total = datos.get('total', 0) %}
+        {% set ganancia = datos.get('ganancia', 0) %}
+        {% set citas = datos.get('citas', []) %}
+        {% set canceladas = datos.get('canceladas', []) %}
+
+        <div class="barbero-card"
+             data-activo="{{ '1' if barbero.activo else '0' }}"
+             data-disponible="{{ '1' if barbero.disponible_hoy else '0' }}">
+
+            <div class="barbero-header">
+                <div class="barbero-nombre">{{ barbero.nombre }}</div>
+
+                <div class="badges">
+                    <span class="badge {% if barbero.activo %}badge-activo{% else %}badge-inactivo{% endif %}">
+                        {% if barbero.activo %}ACTIVO{% else %}INACTIVO{% endif %}
+                    </span>
+                    <span class="badge {% if barbero.disponible_hoy %}badge-disponible{% else %}badge-no-disponible{% endif %}">
+                        {% if barbero.disponible_hoy %}DISPONIBLE{% else %}NO DISPONIBLE{% endif %}
+                    </span>
+                </div>
+            </div>
+
+            <div class="barbero-acciones">
+                <button type="button"
+                    class="btn-accion btn-disponibilidad {% if not barbero.disponible_hoy %}off{% endif %}"
+                    onclick="toggleDisponibilidad('{{ barbero.id }}', this)">
+                    {% if barbero.disponible_hoy %}✓ DISPONIBLE{% else %}X NO DISPONIBLE{% endif %}
+                </button>
+
+                <button type="button"
+                        class="btn-accion btn-estado {% if not barbero.activo %}off{% endif %}"
+                        onclick="toggleActivo('{{ barbero.id }}',this)">
+                    {% if barbero.activo %}✓ ACTIVO{% else %}X INACTIVO{% endif %}
+                </button>
+            </div>
+
+            <div class="barbero-stats">
+                <div class="stat-mini">
+                    <div class="label">{{ label_citas_panel }}</div>
+                    <div class="valor cifra-citas">{{ total }}</div>
+                </div>
+
+                <div class="stat-mini">
+                    <div class="label">Ganancia</div>
+                    <div class="valor cifra-ganancia">₡{{ ganancia }}</div>
+                </div>
+
+                <div class="stat-mini">
+                    <div class="label">Canceladas</div>
+                    <div class="valor">{{ datos.get('canceladas_total', 0) }}</div>
+                </div>
+
+                <div class="stat-mini">
+                    <div class="label">Estado</div>
+                    <div class="valor" style="font-size: 18px;">
+                        {% if datos.get('activo', False) %}
+                            Activo
+                        {% else %}
+                            Inactivo
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="citas-list">
+                {% if citas %}
+                    {% for cita in citas %}
+                    <div class="cita-item">
+                        <div class="cita-top">
+                            <div class="cita-hora">
+                                {% if vista_actual in ['semana', 'mes'] %}
+                                    {{ cita.fecha }} · {{ cita.hora_formateada }}
+                                {% else %}
+                                    {{ cita.hora_formateada }}
+                                {% endif %}
+                            </div>
+
+                            <span class="cita-origen {% if cita.origen == 'online' %}online{% else %}manual{% endif %}">
+                                {% if cita.origen == 'online' %}Online{% else %}Manual{% endif %}
+                            </span>
+                        </div>
+
+                        <div class="cita-cliente">{{ cita.cliente_nombre }}</div>
+                        <div class="cita-servicio">{{ cita.servicio }}</div>
+                    </div>
                     {% endfor %}
-                </select>
+                {% else %}
+                    <div class="cita-vacia">{{ empty_text_panel }}</div>
+                {% endif %}
             </div>
 
-            <div class="form-group">
-                <label for="fecha_manual">Fecha:</label>
-                <input type="date" id="fecha_manual" value="{{ hoy }}" min="{{ hoy }}">
-            </div>
-
-            <div class="form-group">
-                <label for="hora_manual">Hora:</label>
-                <input type="time" id="hora_manual">
-            </div>
-
-            <div class="form-group">
-                <label for="servicio_manual">Servicio:</label>
-                <select id="servicio_manual">
-                    <option value="">Sin servicio</option>
-                    {% for nombre in servicios.keys() %}
-                    <option value="{{ nombre }}">{{ nombre }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-
-            <div class="form-group">
-                <label for="cliente_manual">Nombre cliente:</label>
-                <input type="text" id="cliente_manual" value="Cliente presencial">
-            </div>
-
-            <div class="form-group" style="grid-column: 1 / -1;">
-                <label for="observacion_manual">Observación:</label>
-                <textarea id="observacion_manual" placeholder="Notas adicionales..."></textarea>
-            </div>
-        </div>
-
-        <button type="button" class="btn-crear" onclick="crearCitaManual(this)">CREAR CITA MANUAL</button>
-    </div>
-
-    <div class="barberos-grid">
-        {% for barbero in barberos_info %}
-            {% set bid = barbero.id|string %}
-            {% set datos = stats.get(bid, {}) %}
-            {% set total = datos.get('total', 0) %}
-            {% set ganancia = datos.get('ganancia', 0) %}
-            {% set citas = datos.get('citas', []) %}
-
-            <div class="barbero-card"
-                 data-activo="{{ '1' if barbero.activo else '0' }}"
-                 data-disponible="{{ '1' if barbero.disponible_hoy else '0' }}">
-
-                <div class="barbero-header">
-                    <div class="barbero-nombre">{{ barbero.nombre }}</div>
-
-                    <div class="badges">
-                        <span class="badge {% if barbero.activo %}badge-activo{% else %}badge-inactivo{% endif %}">
-                            {% if barbero.activo %}ACTIVO{% else %}INACTIVO{% endif %}
-                        </span>
-                        <span class="badge {% if barbero.disponible_hoy %}badge-disponible{% else %}badge-no-disponible{% endif %}">
-                            {% if barbero.disponible_hoy %}DISPONIBLE{% else %}NO DISPONIBLE{% endif %}
-                        </span>
+            {% if canceladas %}
+                <div style="margin-top: 14px;">
+                    <div style="color:#fca5a5; font-weight:800; margin-bottom:10px; font-size:14px;">
+                        Canceladas
                     </div>
-                </div>
 
-                <div class="barbero-acciones">
-                    <button type="button"
-        class="btn-accion btn-disponibilidad {% if not barbero.disponible_hoy %}off{% endif %}"
-        onclick="toggleDisponibilidad('{{ barbero.id }}', this)">
-    {% if barbero.disponible_hoy %}✓ DISPONIBLE{% else %}X NO DISPONIBLE{% endif %}
-</button>
-
-                    <button type="button"
-                            class="btn-accion btn-estado {% if not barbero.activo %}off{% endif %}"
-                            onclick="toggleActivo('{{ barbero.id }}',this)">
-                        {% if barbero.activo %}✓ ACTIVO{% else %}X INACTIVO{% endif %}
-                    </button>
-                </div>
-
-                <div class="barbero-stats">
-                    <div class="stat-mini">
-                        <div class="label">Citas hoy</div>
-                        <div class="valor cifra-citas">{{ total }}</div>
-                    </div>
-                    <div class="stat-mini">
-                        <div class="label">Ganancia</div>
-                        <div class="valor cifra-ganancia">{{ ganancia }}</div>
-                    </div>
-                </div>
-
-                <div class="citas-list">
-                    {% if citas %}
-                        {% for cita in citas %}
-                        <div class="cita-item">
+                    <div class="citas-list">
+                        {% for cita in canceladas %}
+                        <div class="cita-item" style="border-color: rgba(220, 38, 38, 0.35);">
                             <div class="cita-top">
-                                <div class="cita-hora">{{ cita.hora_formateada }}</div>
+                                <div class="cita-hora" style="color:#fca5a5;">
+                                    {% if vista_actual in ['semana', 'mes'] %}
+                                        {{ cita.fecha }} · {{ cita.hora_formateada }}
+                                    {% else %}
+                                        {{ cita.hora_formateada }}
+                                    {% endif %}
+                                </div>
+
                                 <span class="cita-origen {% if cita.origen == 'online' %}online{% else %}manual{% endif %}">
                                     {% if cita.origen == 'online' %}Online{% else %}Manual{% endif %}
                                 </span>
                             </div>
+
                             <div class="cita-cliente">{{ cita.cliente_nombre }}</div>
-                            <div class="cita-servicio">{{ cita.servicio }}</div>
+                            <div class="cita-servicio">{{ cita.servicio }} · Cancelada</div>
                         </div>
                         {% endfor %}
-                    {% else %}
-                        <div class="cita-vacia">Sin citas hoy</div>
-                    {% endif %}
+                    </div>
                 </div>
-            </div>
-        {% endfor %}
-    </div>
+            {% endif %}
+        </div>
+    {% endfor %}
 </div>
 
 <script>
@@ -608,18 +646,7 @@ function mostrarMensaje(texto, tipo) {
     }, 4000);
 }
 
-function filtrarVista(vista, btn) {
-    document.querySelectorAll('.filtros button').forEach(b => b.classList.remove('activo'));
-    btn.classList.add('activo');
 
-    document.querySelectorAll('.barbero-card').forEach(card => {
-        if (vista === 'todos') {
-            card.style.display = '';
-        } else {
-            card.style.display = card.dataset.activo === '1' ? '' : 'none';
-        }
-    });
-}
 
 async function toggleDisponibilidad(barberoId, btn) {
     const textoOriginal = btn.innerHTML;
@@ -652,7 +679,6 @@ async function toggleDisponibilidad(barberoId, btn) {
         btn.classList.toggle('off', !data.disponible_hoy);
         btn.disabled = false;
 
-        actualizarResumen();
         mostrarMensaje('Disponibilidad actualizada correctamente', 'exito');
     } catch (e) {
         btn.disabled = false;
@@ -661,6 +687,7 @@ async function toggleDisponibilidad(barberoId, btn) {
         console.error(e);
     }
 }
+
 async function toggleActivo(barberoId, btn) {
     const textoOriginal = btn.innerHTML;
     btn.disabled = true;
@@ -690,88 +717,6 @@ async function toggleActivo(barberoId, btn) {
         console.error(e);
     }
 }
-
-async function crearCitaManual(btn) {
-    const barbero_id = document.getElementById('barbero_manual').value;
-    const fecha = document.getElementById('fecha_manual').value;
-    const hora24 = document.getElementById('hora_manual').value;
-    const servicio = document.getElementById('servicio_manual').value;
-    const cliente_nombre = document.getElementById('cliente_manual').value.trim() || 'Cliente presencial';
-    const observacion = document.getElementById('observacion_manual').value.trim();
-
-    if (!barbero_id || !fecha || !hora24) {
-        mostrarMensaje('Completa barbero, fecha y hora.', 'error');
-        return;
-    }
-
-    const textoOriginal = btn.innerHTML;
-    btn.disabled = true;
-    btn.innerHTML = 'CREANDO CITA...';
-    btn.style.opacity = '0.7';
-    btn.style.cursor = 'not-allowed';
-
-    const [hh, mm] = hora24.split(':');
-    let h = parseInt(hh, 10);
-    const ampm = h >= 12 ? 'pm' : 'am';
-    h = h % 12 || 12;
-    const hora = `${String(h).padStart(2, '0')}:${mm}${ampm}`;
-
-    try {
-        const res = await fetch('/api/cita_manual', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                barbero_id,
-                fecha,
-                hora,
-                servicio,
-                cliente_nombre,
-                observacion
-            })
-        });
-
-        const data = await res.json();
-
-        if (!res.ok || !data.success) {
-            throw new Error(data.error || 'No se pudo crear la cita manual');
-        }
-
-        mostrarMensaje('Cita manual creada correctamente', 'exito');
-        location.reload();
-    } catch (e) {
-        btn.disabled = false;
-        btn.innerHTML = textoOriginal;
-        btn.style.opacity = '1';
-        btn.style.cursor = 'pointer';
-        mostrarMensaje(e.message, 'error');
-        console.error(e);
-    }
-}
-
-function actualizarResumen() {
-    let totalCitas = 0;
-    let totalGanancia = 0;
-    let activos = 0;
-    let disponibles = 0;
-
-    document.querySelectorAll('.barbero-card').forEach(card => {
-        const citas = parseInt(card.querySelector('.cifra-citas')?.textContent || '0', 10);
-        const ganancia = parseInt(card.querySelector('.cifra-ganancia')?.textContent || '0', 10);
-
-        totalCitas += citas;
-        totalGanancia += ganancia;
-
-        if (card.dataset.activo === '1') activos++;
-        if (card.dataset.disponible === '1') disponibles++;
-    });
-
-    document.getElementById('total-citas').textContent = totalCitas;
-    document.getElementById('total-ganancia').textContent = totalGanancia;
-    document.getElementById('barberos-activos').textContent = activos;
-    document.getElementById('barberos-disponibles').textContent = disponibles;
-}
-
-document.addEventListener('DOMContentLoaded', actualizarResumen);
 </script>
 </body>
 </html>

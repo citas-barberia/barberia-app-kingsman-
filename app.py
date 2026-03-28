@@ -31,10 +31,13 @@ BARBEROS = {
 }
 
 SERVICIOS = {
-    "Corte de cabello": {"precio": 5000, "duracion": 30},
-    "Corte + barba": {"precio": 7000, "duracion": 60},
-    "Cejas": {"precio": 2000, "duracion": 15},
+    "Corte premium": {"precio": 6000, "duracion": 30},
+    "Corte y barba premium": {"precio": 11000, "duracion": 60},
+    "Corte y marcado de barba": {"precio": 8000, "duracion": 60},
+    "Barba premium": {"precio": 6000, "duracion": 30},
 }
+HORARIO_SEMANA = {"inicio": "10:00AM", "fin": "07:00PM"}
+HORARIO_SABADO = {"inicio": "09:00AM", "fin": "06:00PM"}
 
 MESES_2026 = {
     "01": "Enero",
@@ -81,6 +84,19 @@ def formatear_hora(hora_db):
     except Exception:
         return str(hora_db)
 
+def obtener_horario_por_fecha(fecha_str):
+    try:
+        fecha_dt = datetime.strptime(fecha_str, "%Y-%m-%d")
+        dia = fecha_dt.weekday()  # lunes=0 ... domingo=6
+    except Exception:
+        return None
+
+    if dia == 6:  # domingo
+        return None
+    if dia == 5:  # sábado
+        return HORARIO_SABADO
+
+    return HORARIO_SEMANA
 
 def hora_choque(hora_nueva, duracion_nueva, hora_existente, duracion_existente):
     inicio_nueva = datetime.strptime(hora_nueva.upper(), "%I:%M%p")
@@ -357,7 +373,7 @@ def horas():
     fecha = request.args.get("fecha")
     barbero_id = request.args.get("barbero_id")
     servicio = request.args.get("servicio")
-
+    print("ARGS /horas:", fecha, barbero_id, servicio)
     if not all([fecha, barbero_id, servicio]):
         return jsonify([])
 
@@ -367,10 +383,65 @@ def horas():
     if servicio not in SERVICIOS:
         return jsonify([])
 
+    horario = obtener_horario_por_fecha(fecha)
+    if not horario:
+        return jsonify([])
+
+    # Si es hoy y el barbero está marcado no disponible, no salen horas
     if fecha == datetime.now(TZ).strftime("%Y-%m-%d"):
         if not barbero_disponible_hoy(barbero_id):
             return jsonify([])
 
+    duracion_nueva = calcular_duracion(servicio)
+    citas = obtener_citas_barbero_fecha(barbero_id, fecha)
+
+    ocupados = []
+    for cita in citas:
+        estado = str(cita.get("estado", "")).lower()
+        if estado == "cancelada":
+            continue
+
+        hora_existente = str(cita.get("hora"))
+        servicio_existente = cita.get("servicio", "")
+        duracion_existente = calcular_duracion(servicio_existente)
+
+        inicio = datetime.strptime(hora_existente, "%H:%M:%S")
+        fin = inicio + timedelta(minutes=duracion_existente)
+        ocupados.append((inicio, fin))
+
+    disponibles = []
+    apertura = datetime.strptime(horario["inicio"], "%I:%M%p")
+    cierre = datetime.strptime(horario["fin"], "%I:%M%p")
+
+    fecha_hoy_cr = datetime.now(TZ).strftime("%Y-%m-%d")
+    ahora_cr = datetime.now(TZ)
+
+    actual = apertura
+    while actual + timedelta(minutes=duracion_nueva) <= cierre:
+        fin_actual = actual + timedelta(minutes=duracion_nueva)
+        libre = True
+
+        for inicio_ocupado, fin_ocupado in ocupados:
+            if actual < fin_ocupado and fin_actual > inicio_ocupado:
+                libre = False
+                break
+
+        if libre:
+            if fecha == fecha_hoy_cr:
+                hora_slot_hoy = ahora_cr.replace(
+                    hour=actual.hour,
+                    minute=actual.minute,
+                    second=0,
+                    microsecond=0
+                )
+                if hora_slot_hoy > ahora_cr:
+                    disponibles.append(actual.strftime("%I:%M%p").lower())
+            else:
+                disponibles.append(actual.strftime("%I:%M%p").lower())
+
+        actual += timedelta(minutes=15)
+
+    return jsonify(disponibles)
     duracion_nueva = calcular_duracion(servicio)
     citas = obtener_citas_barbero_fecha(barbero_id, fecha)
 
@@ -418,7 +489,7 @@ def horas():
                 disponibles.append(actual.strftime("%I:%M%p").lower())
 
         actual += timedelta(minutes=15)
-
+    print("HORAS DISPONIBLES:", disponibles)
     return jsonify(disponibles)
 
 
@@ -605,67 +676,187 @@ def cancelar_barbero():
     flash("Cita cancelada correctamente.")
     return redirect(url_for("panel_barbero", id_barbero=barbero_id))
 
+def obtener_rango_vista(vista):
+    ahora = datetime.now(TZ)
+    hoy = ahora.date()
+
+    if vista == "manana":
+        inicio = hoy + timedelta(days=1)
+        fin = inicio
+        titulo = "Agenda de mañana"
+        subtitulo = "Citas agendadas para el día siguiente"
+        label_citas = "Citas mañana"
+        empty_text = "Sin citas mañana"
+    elif vista == "semana":
+        inicio = hoy - timedelta(days=hoy.weekday())  # lunes
+        fin = inicio + timedelta(days=6)              # domingo
+        titulo = "Resumen semanal"
+        subtitulo = "Productividad y citas de la semana"
+        label_citas = "Citas semana"
+        empty_text = "Sin citas esta semana"
+    elif vista == "mes":
+        inicio = hoy.replace(day=1)
+        if inicio.month == 12:
+            siguiente_mes = inicio.replace(year=inicio.year + 1, month=1, day=1)
+        else:
+            siguiente_mes = inicio.replace(month=inicio.month + 1, day=1)
+        fin = siguiente_mes - timedelta(days=1)
+        titulo = "Resumen mensual"
+        subtitulo = "Ingresos y citas del mes actual"
+        label_citas = "Citas mes"
+        empty_text = "Sin citas este mes"
+    else:
+        inicio = hoy
+        fin = hoy
+        titulo = "Panel Administrativo"
+        subtitulo = "Vista general de la barbería y citas de hoy"
+        label_citas = "Citas hoy"
+        empty_text = "Sin citas hoy"
+        vista = "inicio"
+
+    return {
+        "vista": vista,
+        "inicio": inicio.strftime("%Y-%m-%d"),
+        "fin": fin.strftime("%Y-%m-%d"),
+        "titulo": titulo,
+        "subtitulo": subtitulo,
+        "label_citas": label_citas,
+        "empty_text": empty_text
+    }
+
+
+def obtener_citas_rango(fecha_inicio, fecha_fin):
+    url = (
+        f"{SUPABASE_URL}/rest/v1/citas"
+        f"?fecha=gte.{fecha_inicio}&fecha=lte.{fecha_fin}"
+        f"&order=fecha.asc,hora.asc"
+    )
+
+    try:
+        res = requests.get(url, headers=_headers(), timeout=20)
+        if res.status_code == 200:
+            data = res.json()
+            return data if isinstance(data, list) else []
+    except Exception:
+        pass
+
+    return []
+
+
+def enriquecer_cita(cita, barberos_dict):
+    barbero_id = str(cita.get("barbero_id", ""))
+    cita["barbero_nombre"] = barberos_dict.get(barbero_id, {}).get("nombre", "Sin asignar")
+    cita["barbero_activo"] = barberos_dict.get(barbero_id, {}).get("activo", False)
+    cita["precio"] = calcular_precio(cita.get("servicio", ""))
+    cita["hora_formateada"] = formatear_hora(cita.get("hora"))
+    cita["origen"] = cita.get("origen", "online")
+    cita["tipo_visual"] = "online" if cita.get("origen") == "online" else "manual"
+    return cita
 
 @app.route("/dueno")
 def panel_dueno():
+    vista = request.args.get("vista", "inicio")
+    rango = obtener_rango_vista(vista)
+
+    fecha_inicio = rango["inicio"]
+    fecha_fin = rango["fin"]
     hoy = datetime.now(TZ).strftime("%Y-%m-%d")
 
-    url = f"{SUPABASE_URL}/rest/v1/citas?fecha=eq.{hoy}&order=hora.asc"
-    res = requests.get(url, headers=_headers(), timeout=20)
-
-    try:
-        citas_hoy = res.json() if res.status_code == 200 else []
-        citas_hoy = citas_hoy if isinstance(citas_hoy, list) else []
-    except Exception:
-        citas_hoy = []
+    citas_periodo = obtener_citas_rango(fecha_inicio, fecha_fin)
 
     barberos_info = obtener_todos_barberos()
     barberos_dict = {str(b.get("id")): b for b in barberos_info}
 
-    for cita in citas_hoy:
-        if str(cita.get("estado", "")).lower() == "cancelada":
-            continue
+    for cita in citas_periodo:
+        enriquecer_cita(cita, barberos_dict)
 
-        barbero_id = str(cita.get("barbero_id", ""))
-        cita["barbero_nombre"] = barberos_dict.get(barbero_id, {}).get("nombre", "Sin asignar")
-        cita["barbero_activo"] = barberos_dict.get(barbero_id, {}).get("activo", False)
-        cita["precio"] = calcular_precio(cita.get("servicio", ""))
-        cita["hora_formateada"] = formatear_hora(cita.get("hora"))
-        cita["origen"] = cita.get("origen", "online")
-        cita["tipo_visual"] = "online" if cita.get("origen") == "online" else "manual"
+    citas_no_canceladas = [
+        c for c in citas_periodo
+        if str(c.get("estado", "")).lower() != "cancelada"
+    ]
 
-    citas_activas = [c for c in citas_hoy if str(c.get("estado", "")).lower() != "cancelada"]
+    citas_canceladas = [
+        c for c in citas_periodo
+        if str(c.get("estado", "")).lower() == "cancelada"
+    ]
 
     citas_por_barbero = {}
-    for cita in citas_activas:
+    canceladas_por_barbero = {}
+
+    for cita in citas_no_canceladas:
         bid = str(cita.get("barbero_id", ""))
         citas_por_barbero.setdefault(bid, []).append(cita)
+
+    for cita in citas_canceladas:
+        bid = str(cita.get("barbero_id", ""))
+        canceladas_por_barbero.setdefault(bid, []).append(cita)
 
     stats = {}
     for barbero in barberos_info:
         bid = str(barbero.get("id"))
-        citas = citas_por_barbero.get(bid, [])
-        atendidas = [c for c in citas if str(c.get("estado", "")).lower() == "atendida"]
+        citas_barbero = citas_por_barbero.get(bid, [])
+        canceladas_barbero = canceladas_por_barbero.get(bid, [])
+
+        atendidas = [
+            c for c in citas_barbero
+            if str(c.get("estado", "")).lower() == "atendida"
+        ]
+
         ganancia = sum(calcular_precio(c.get("servicio", "")) for c in atendidas)
 
         stats[bid] = {
             "nombre": barbero.get("nombre"),
-            "total": len(citas),
+            "total": len(citas_barbero),
             "ganancia": ganancia,
             "activo": barbero.get("activo", False),
             "disponible_hoy": barbero.get("disponible_hoy", False),
-            "citas": citas
+            "citas": citas_barbero,
+            "canceladas": canceladas_barbero,
+            "canceladas_total": len(canceladas_barbero)
         }
+
+    resumen = {
+        "total_citas": len(citas_no_canceladas),
+        "total_canceladas": len(citas_canceladas),
+        "total_atendidas": len([
+            c for c in citas_no_canceladas
+            if str(c.get("estado", "")).lower() == "atendida"
+        ]),
+        "total_ingresos": sum(
+            calcular_precio(c.get("servicio", ""))
+            for c in citas_no_canceladas
+            if str(c.get("estado", "")).lower() == "atendida"
+        )
+    }
 
     return render_template(
         "panel_admin.html",
         stats=stats,
         barberos_info=barberos_info,
-        citas_activas=citas_activas,
+        citas_activas=citas_no_canceladas,
+        citas_canceladas=citas_canceladas,
+        servicios=SERVICIOS,
+        hoy=hoy,
+        vista_actual=rango["vista"],
+        titulo_panel=rango["titulo"],
+        subtitulo_panel=rango["subtitulo"],
+        label_citas_panel=rango["label_citas"],
+        empty_text_panel=rango["empty_text"],
+        resumen=resumen,
+        fecha_inicio=fecha_inicio,
+        fecha_fin=fecha_fin
+    )
+@app.route("/dueno/nueva-cita")
+def nueva_cita_dueno():
+    hoy = datetime.now(TZ).strftime("%Y-%m-%d")
+    barberos_info = obtener_todos_barberos()
+
+    return render_template(
+        "nueva_cita_admin.html",
+        barberos_info=barberos_info,
         servicios=SERVICIOS,
         hoy=hoy
     )
-
 
 @app.route("/api/barbero/<barbero_id>/toggle_disponibilidad", methods=["POST"])
 def toggle_disponibilidad(barbero_id):
