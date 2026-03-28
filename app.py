@@ -302,18 +302,9 @@ def agendar():
             flash("No se encontró el barbero seleccionado.")
             return redirect(url_for("index"))
 
-        es_hoy = fecha == datetime.now(TZ).strftime("%Y-%m-%d")
-
-        # Hoy: debe estar activo y disponible
-        if es_hoy:
-            if not bool(barbero.get("activo", False)) or not bool(barbero.get("disponible_hoy", False)):
-                flash("Ese barbero no está disponible para citas hoy.")
-                return redirect(url_for("index"))
-        else:
-            # Futuro: solo debe estar disponible
-            if not bool(barbero.get("disponible_hoy", False)):
-                flash("Ese barbero no está disponible para agenda.")
-                return redirect(url_for("index"))
+        if not bool(barbero.get("disponible_hoy", False)):
+            flash("Ese barbero no está disponible para agenda.")
+            return redirect(url_for("index"))
 
         if servicio not in SERVICIOS:
             flash("El servicio seleccionado no es válido.")
@@ -398,6 +389,7 @@ def agendar():
 
     return redirect(url_for("index"))
 
+  
 
 @app.route("/horas")
 def horas():
@@ -424,16 +416,9 @@ def horas():
     if not barbero:
         return jsonify([])
 
-    es_hoy = fecha == datetime.now(TZ).strftime("%Y-%m-%d")
-
-    # Hoy: debe estar activo y disponible
-    if es_hoy:
-        if not bool(barbero.get("activo", False)) or not bool(barbero.get("disponible_hoy", False)):
-            return jsonify([])
-    else:
-        # Futuro: solo debe estar disponible
-        if not bool(barbero.get("disponible_hoy", False)):
-            return jsonify([])
+    # Solo revisar disponibilidad
+    if not bool(barbero.get("disponible_hoy", False)):
+        return jsonify([])
 
     duracion_nueva = calcular_duracion(servicio)
     citas = obtener_citas_barbero_fecha(barbero_id, fecha)
@@ -483,6 +468,9 @@ def horas():
                 disponibles.append(actual.strftime("%I:%M%p").lower())
 
         actual += timedelta(minutes=15)
+
+    print("HORAS DISPONIBLES:", disponibles)
+    return jsonify(disponibles)
 
     print("HORAS DISPONIBLES:", disponibles)
     return jsonify(disponibles)
