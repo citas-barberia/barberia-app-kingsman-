@@ -680,6 +680,11 @@ def cancelar_por_token(token):
             return redirect(url_for("index"))
 
         cita_id = cita.get("id")
+        barbero_id = str(cita.get("barbero_id", ""))
+        cliente_nombre = cita.get("cliente_nombre", "")
+        fecha = cita.get("fecha", "")
+        hora = formatear_hora(cita.get("hora", ""))
+        servicio = cita.get("servicio", "")
 
         patch = requests.patch(
             f"{SUPABASE_URL}/rest/v1/citas?id=eq.{cita_id}",
@@ -691,6 +696,21 @@ def cancelar_por_token(token):
         if patch.status_code not in [200, 204]:
             flash("No se pudo cancelar la cita.")
             return redirect(url_for("index"))
+
+        # Aviso al barbero
+        nombre_barbero = BARBEROS.get(barbero_id, {}).get("nombre", "Barbero")
+        telefono_barbero = BARBEROS.get(barbero_id, {}).get("telefono", "")
+
+        if telefono_barbero:
+            mensaje_barbero = (
+                f"❌ Cita cancelada por el cliente\n"
+                f"Barbero: {nombre_barbero}\n"
+                f"Cliente: {cliente_nombre}\n"
+                f"Servicio: {servicio}\n"
+                f"Fecha: {fecha}\n"
+                f"Hora: {hora}"
+            )
+            enviar_whatsapp_texto(telefono_barbero, mensaje_barbero)
 
         flash("Tu cita fue cancelada correctamente.")
         return redirect(url_for("index"))
