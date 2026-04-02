@@ -245,90 +245,38 @@
         </div>
     </div>
 
-    <script>
-        const BARBERO_ID = "{{ stats.id }}";
-        const MODO = "{{ stats.modo }}";
-        const MES = "{{ stats.mes }}";
+<script>
+const BARBERO_ID = "{{ stats.id }}";
+const MODO = "{{ stats.modo }}";
+const MES = "{{ stats.mes }}";
 
-        function escapeHtml(text) {
-            return String(text ?? "")
-                .replaceAll("&", "&amp;")
-                .replaceAll("<", "&lt;")
-                .replaceAll(">", "&gt;")
-                .replaceAll('"', "&quot;")
-                .replaceAll("'", "&#039;");
-        }
+let ultimaFirmaBarbero = "{{ stats.total }}|{{ stats.canceladas_hoy }}|{{ citas|length }}";
 
-        function renderCitas(citas) {
-            const container = document.getElementById("citas-container");
+async function vigilarCambiosPanelBarbero() {
+    try {
+        const res = await fetch(
+            `/api/panel_barbero_meta/${BARBERO_ID}?solo=${encodeURIComponent(MODO)}&mes=${encodeURIComponent(MES)}`,
+            { cache: "no-store" }
+        );
 
-            if (!citas || !citas.length) {
-                container.innerHTML = `
-                    <div class="vacio">
-                        No hay citas en este filtro.
-                    </div>
-                `;
-                return;
-            }
+        if (!res.ok) return;
 
-            container.innerHTML = citas.map(cita => {
-                const estado = (cita.estado || "pendiente").toLowerCase();
-                const claseEstado =
-                    estado === "atendida" ? "atendida" :
-                    estado === "cancelada" ? "cancelada" : "pendiente";
+        const data = await res.json();
+        const nuevaFirma = `${data.resumen.total}|${data.resumen.canceladas_hoy}|${data.resumen.cantidad_filtradas}`;
 
-                const acciones = (estado !== "atendida" && estado !== "cancelada")
-                    ? `
-                        <div class="acciones">
-                            <form action="/atendida" method="POST">
-                                <input type="hidden" name="id" value="${escapeHtml(cita.id)}">
-                                <input type="hidden" name="barbero_id" value="${escapeHtml(BARBERO_ID)}">
-                                <button type="submit" class="btn-atender">Marcar atendida</button>
-                            </form>
+        if (nuevaFirma !== ultimaFirmaBarbero) {
+            window.location.href = `/panel/${BARBERO_ID}?solo=${encodeURIComponent(MODO)}&mes=${encodeURIComponent(MES)}&_=${Date.now()}`;
+}
+    } catch (error) {
+        console.error("Error vigilando panel barbero:", error);
+    }
+}
 
-                            <form action="/cancelar_barbero" method="POST">
-                                <input type="hidden" name="id" value="${escapeHtml(cita.id)}">
-                                <input type="hidden" name="barbero_id" value="${escapeHtml(BARBERO_ID)}">
-                                <button type="submit" class="btn-cancelar">Cancelar cita</button>
-                            </form>
-                        </div>
-                    `
-                    : "";
+function refrescarPanel() {
+    window.location.href = `/panel/${BARBERO_ID}?solo=${encodeURIComponent(MODO)}&mes=${encodeURIComponent(MES)}&_=${Date.now()}`;
+}
 
-                return `
-                    <div class="cita">
-                        <h3>${escapeHtml(cita.cliente_nombre)}</h3>
-                        <p><strong>Servicio:</strong> ${escapeHtml(cita.servicio)}</p>
-                        <p><strong>Fecha:</strong> ${escapeHtml(cita.fecha)}</p>
-                        <p><strong>Hora:</strong> ${escapeHtml(cita.hora_formateada)}</p>
-                        <p><strong>Precio:</strong> ₡${escapeHtml(cita.precio)}</p>
-                        <span class="estado ${claseEstado}">${escapeHtml(estado)}</span>
-                        ${acciones}
-                    </div>
-                `;
-            }).join("");
-        }
-
-        async function refrescarPanel() {
-            try {
-                const res = await fetch(`/api/panel_barbero/${BARBERO_ID}?solo=${encodeURIComponent(MODO)}&mes=${encodeURIComponent(MES)}`);
-                if (!res.ok) {
-                    throw new Error("No se pudo actualizar el panel");
-                }
-
-                const data = await res.json();
-
-                document.getElementById("stat-total").textContent = data.stats.total;
-                
-                document.getElementById("stat-canceladas").textContent = data.stats.canceladas_hoy;
-
-                renderCitas(data.citas);
-            } catch (error) {
-                console.error("Error refrescando panel:", error);
-            }
-        }
-
-        setInterval(refrescarPanel, 30000);
-    </script>
+setInterval(vigilarCambiosPanelBarbero, 3000);
+</script>
 </body>
 </html>
