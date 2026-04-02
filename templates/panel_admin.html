@@ -519,22 +519,22 @@
 <div class="resumen">
     <div class="resumen-card">
         <div class="label">Total citas</div>
-        <div class="valor">{{ resumen.total_citas }}</div>
+        <div class="valor" id="resumen-total-citas">{{ resumen.total_citas }}</div>
     </div>
 
     <div class="resumen-card">
         <div class="label">Atendidas</div>
-        <div class="valor">{{ resumen.total_atendidas }}</div>
+        <div class="valor" id="resumen-total-atendidas">{{ resumen.total_atendidas }}</div>
     </div>
 
     <div class="resumen-card">
         <div class="label">Canceladas</div>
-        <div class="valor">{{ resumen.total_canceladas }}</div>
+        <div class="valor" id="resumen-total-canceladas">{{ resumen.total_canceladas }}</div>
     </div>
 
     <div class="resumen-card">
         <div class="label">Ingresos</div>
-        <div class="valor">₡{{ resumen.total_ingresos }}</div>
+        <div class="valor" id="resumen-total-ingresos">₡{{ resumen.total_ingresos }}</div>
     </div>
 </div>
 
@@ -548,6 +548,7 @@
         {% set canceladas = datos.get('canceladas', []) %}
 
         <div class="barbero-card"
+        data-barbero-id="{{ barbero.id }}"
              data-disponible="{{ '1' if barbero.disponible_hoy else '0' }}">
 
             <div class="barbero-header">
@@ -571,21 +572,21 @@
             <div class="barbero-stats">
                 <div class="stat-mini">
                     <div class="label">{{ label_citas_panel }}</div>
-                    <div class="valor cifra-citas">{{ total }}</div>
+                    <div class="valor cifra-citas" id="citas-{{ barbero.id }}">{{ total }}</div>
                 </div>
 
                 <div class="stat-mini">
                     <div class="label">Ganancia</div>
-                    <div class="valor cifra-ganancia">₡{{ ganancia }}</div>
+                    <div class="valor cifra-ganancia" id="ganancia-{{ barbero.id }}">₡{{ ganancia }}</div>
                 </div>
 
                 <div class="stat-mini">
                     <div class="label">Canceladas</div>
-                    <div class="valor">{{ datos.get('canceladas_total', 0) }}</div>
+                    <div class="valor" id="canceladas-{{ barbero.id }}">{{ datos.get('canceladas_total', 0) }}</div>
                 </div>
             </div>
 
-            <div class="citas-list">
+            <div class="citas-list" id="lista-citas-{{ barbero.id }}"></div>
                 {% if citas %}
                     {% for cita in citas %}
                     <div class="cita-item">
@@ -748,6 +749,148 @@ async function toggleActivo(barberoId, btn) {
         console.error(e);
     }
 }
+
+function mostrarMensaje(texto, tipo) {
+    const cont = document.getElementById('mensaje-container');
+    cont.innerHTML = `<div class="mensaje ${tipo}">${texto}</div>`;
+    setTimeout(() => {
+        cont.innerHTML = '';
+    }, 4000);
+}
+
+async function toggleDisponibilidad(barberoId, btn) {
+    const textoOriginal = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = 'Guardando...';
+
+    try {
+        const res = await fetch(`/api/barbero/${barberoId}/toggle_disponibilidad`, {
+            method: 'POST'
+        });
+
+        const data = await res.json();
+
+        if (!res.ok || !data.success) {
+            throw new Error(data.error || 'No se pudo cambiar disponibilidad');
+        }
+
+        const card = btn.closest('.barbero-card');
+        const disponibleAhora = data.disponible_hoy ? '1' : '0';
+
+        card.dataset.disponible = disponibleAhora;
+
+        const badgeDisponible = card.querySelector('.badge-disponible, .badge-no-disponible');
+        if (badgeDisponible) {
+            badgeDisponible.textContent = data.disponible_hoy ? 'DISPONIBLE' : 'NO DISPONIBLE';
+            badgeDisponible.className = `badge ${data.disponible_hoy ? 'badge-disponible' : 'badge-no-disponible'}`;
+        }
+
+        btn.innerHTML = data.disponible_hoy ? '✓ DISPONIBLE' : 'X NO DISPONIBLE';
+        btn.classList.toggle('off', !data.disponible_hoy);
+        btn.disabled = false;
+
+        mostrarMensaje('Disponibilidad actualizada correctamente', 'exito');
+    } catch (e) {
+        btn.disabled = false;
+        btn.innerHTML = textoOriginal;
+        mostrarMensaje(e.message, 'error');
+        console.error(e);
+    }
+}
+
+async function toggleActivo(barberoId, btn) {
+    const textoOriginal = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = 'Guardando...';
+    btn.style.opacity = '0.7';
+    btn.style.cursor = 'not-allowed';
+
+    try {
+        const res = await fetch(`/api/barbero/${barberoId}/toggle_activo`, {
+            method: 'POST'
+        });
+
+        const data = await res.json();
+
+        if (!res.ok || !data.success) {
+            throw new Error(data.error || 'No se pudo cambiar estado');
+        }
+
+        mostrarMensaje('Estado actualizado correctamente', 'exito');
+        location.reload();
+    } catch (e) {
+        btn.disabled = false;
+        btn.innerHTML = textoOriginal;
+        btn.style.opacity = '1';
+        btn.style.cursor = 'pointer';
+        mostrarMensaje(e.message, 'error');
+        console.error(e);
+    }
+}
+
+async function refrescarPanelAdmin() {
+    try {
+        const res = await fetch(`/api/panel_admin?vista={{ vista_actual }}`);
+        if (!res.ok) throw new Error('No se pudo actualizar el panel admin');
+
+        const data = await res.json();
+
+        if (document.getElementById('resumen-total-citas')) {
+            document.getElementById('resumen-total-citas').textContent = data.resumen.total_citas;
+        }
+        if (document.getElementById('resumen-total-atendidas')) {
+            document.getElementById('resumen-total-atendidas').textContent = data.resumen.total_atendidas;
+        }
+        if (document.getElementById('resumen-total-canceladas')) {
+            document.getElementById('resumen-total-canceladas').textContent = data.resumen.total_canceladas;
+        }
+        if (document.getElementById('resumen-total-ingresos')) {
+            document.getElementById('resumen-total-ingresos').textContent = `₡${data.resumen.total_ingresos}`;
+        }
+
+        for (const barbero of data.barberos) {
+            const citasEl = document.getElementById(`citas-${barbero.id}`);
+            const gananciaEl = document.getElementById(`ganancia-${barbero.id}`);
+            const canceladasEl = document.getElementById(`canceladas-${barbero.id}`);
+            const listaEl = document.getElementById(`lista-citas-${barbero.id}`);
+
+            if (citasEl) citasEl.textContent = barbero.total;
+            if (gananciaEl) gananciaEl.textContent = `₡${barbero.ganancia}`;
+            if (canceladasEl) canceladasEl.textContent = barbero.canceladas_total;
+
+            if (listaEl) {
+                if (!barbero.citas || !barbero.citas.length) {
+                    listaEl.innerHTML = `<div class="cita-vacia">{{ empty_text_panel }}</div>`;
+                } else {
+                    listaEl.innerHTML = barbero.citas.map(cita => `
+                        <div class="cita-item">
+                            <div class="cita-top">
+                                <div class="cita-hora">
+                                    ${cita.fecha ? `${cita.fecha} · ` : ''}${cita.hora_formateada}
+                                </div>
+
+                                ${cita.estado === 'atendida'
+                                    ? `<span class="badge-atendida">ATENDIDA</span>`
+                                    : `<span class="cita-origen ${cita.origen === 'online' ? 'online' : 'manual'}">
+                                        ${cita.origen === 'online' ? 'Online' : 'Manual'}
+                                      </span>`
+                                }
+                            </div>
+
+                            <div class="cita-cliente">${cita.cliente_nombre}</div>
+                            <div class="cita-servicio">${cita.servicio}</div>
+                        </div>
+                    `).join('');
+                }
+            }
+        }
+    } catch (error) {
+        console.error('Error refrescando panel admin:', error);
+    }
+}
+
+setInterval(refrescarPanelAdmin, 3000);
+
 </script>
 </body>
 </html>

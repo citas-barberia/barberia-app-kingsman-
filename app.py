@@ -1353,6 +1353,102 @@ def panel_dueno():
         fecha_inicio=fecha_inicio,
         fecha_fin=fecha_fin
     )
+
+@app.route("/api/panel_admin")
+def api_panel_admin():
+    vista = request.args.get("vista", "inicio")
+    rango = obtener_rango_vista(vista)
+
+    fecha_inicio = rango["inicio"]
+    fecha_fin = rango["fin"]
+
+    citas_periodo = obtener_citas_rango(fecha_inicio, fecha_fin)
+
+    barberos_info = obtener_todos_barberos()
+    barberos_dict = {str(b.get("id")): b for b in barberos_info}
+
+    for cita in citas_periodo:
+        enriquecer_cita(cita, barberos_dict)
+
+    citas_no_canceladas = [
+        c for c in citas_periodo
+        if str(c.get("estado", "")).lower() != "cancelada"
+    ]
+
+    citas_canceladas = [
+        c for c in citas_periodo
+        if str(c.get("estado", "")).lower() == "cancelada"
+    ]
+
+    citas_por_barbero = {}
+    canceladas_por_barbero = {}
+
+    for cita in citas_no_canceladas:
+        bid = str(cita.get("barbero_id", ""))
+        citas_por_barbero.setdefault(bid, []).append(cita)
+
+    for cita in citas_canceladas:
+        bid = str(cita.get("barbero_id", ""))
+        canceladas_por_barbero.setdefault(bid, []).append(cita)
+
+    stats = {}
+    barberos_json = []
+
+    for barbero in barberos_info:
+        bid = str(barbero.get("id"))
+        citas_barbero = citas_por_barbero.get(bid, [])
+        canceladas_barbero = canceladas_por_barbero.get(bid, [])
+
+        atendidas = [
+            c for c in citas_barbero
+            if str(c.get("estado", "")).lower() == "atendida"
+        ]
+
+        ganancia = sum(calcular_precio(c.get("servicio", "")) for c in atendidas)
+
+        stats[bid] = {
+            "nombre": barbero.get("nombre"),
+            "total": len(citas_barbero),
+            "ganancia": ganancia,
+            "activo": barbero.get("activo", False),
+            "disponible_hoy": barbero.get("disponible_hoy", False),
+            "citas": citas_barbero,
+            "canceladas": canceladas_barbero,
+            "canceladas_total": len(canceladas_barbero)
+        }
+
+        barberos_json.append({
+            "id": barbero.get("id"),
+            "nombre": barbero.get("nombre"),
+            "total": len(citas_barbero),
+            "ganancia": ganancia,
+            "canceladas_total": len(canceladas_barbero),
+            "citas": citas_barbero,
+            "canceladas": canceladas_barbero,
+            "disponible_hoy": barbero.get("disponible_hoy", False),
+            "activo": barbero.get("activo", False)
+        })
+
+    resumen = {
+        "total_citas": len(citas_no_canceladas),
+        "total_canceladas": len(citas_canceladas),
+        "total_atendidas": len([
+            c for c in citas_no_canceladas
+            if str(c.get("estado", "")).lower() == "atendida"
+        ]),
+        "total_ingresos": sum(
+            calcular_precio(c.get("servicio", ""))
+            for c in citas_no_canceladas
+            if str(c.get("estado", "")).lower() == "atendida"
+        )
+    }
+
+    return jsonify({
+        "success": True,
+        "resumen": resumen,
+        "barberos": barberos_json
+    })
+
 @app.route("/dueno/nueva-cita")
 def nueva_cita_dueno():
     hoy = datetime.now(TZ).strftime("%Y-%m-%d")
