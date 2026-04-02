@@ -387,7 +387,7 @@ def enviar_whatsapp_template_recordatorio(numero, nombre_cliente, nombre_barbero
         print("Error enviando template de recordatorio:", e)
         return None
     
-def enviar_whatsapp_template_barbero(numero, cliente, telefono_cliente, servicio, fecha, hora):
+def enviar_whatsapp_template_barbero(numero, cliente, servicio, fecha, hora):
     try:
         if not WHATSAPP_TOKEN or not WHATSAPP_PHONE_NUMBER_ID:
             print("WhatsApp no configurado en variables de entorno.")
@@ -410,7 +410,6 @@ def enviar_whatsapp_template_barbero(numero, cliente, telefono_cliente, servicio
                         "type": "body",
                         "parameters": [
                             {"type": "text", "text": str(cliente)},
-                            {"type": "text", "text": str(telefono_cliente)},
                             {"type": "text", "text": str(servicio)},
                             {"type": "text", "text": str(fecha)},
                             {"type": "text", "text": str(hora)}
@@ -433,7 +432,7 @@ def enviar_whatsapp_template_barbero(numero, cliente, telefono_cliente, servicio
     except Exception as e:
         print("Error enviando template al barbero:", e)
         return None
-        
+    
 def inicializar_barberos():
     try:
         for b_id, info in BARBEROS.items():
