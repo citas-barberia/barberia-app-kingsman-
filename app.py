@@ -355,7 +355,7 @@ def enviar_whatsapp_template_recordatorio(numero, nombre_cliente, nombre_barbero
             "to": numero,
             "type": "template",
             "template": {
-                "name": "recordatorio_cita_30min",
+                "name": "recordatorio_cita_30min_cr",
                 "language": {
                     "code": "es_CR"
                 },
