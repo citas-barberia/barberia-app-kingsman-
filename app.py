@@ -387,7 +387,53 @@ def enviar_whatsapp_template_recordatorio(numero, nombre_cliente, nombre_barbero
         print("Error enviando template de recordatorio:", e)
         return None
     
-    
+def enviar_whatsapp_template_barbero(numero, cliente, telefono_cliente, servicio, fecha, hora):
+    try:
+        if not WHATSAPP_TOKEN or not WHATSAPP_PHONE_NUMBER_ID:
+            print("WhatsApp no configurado en variables de entorno.")
+            return None
+
+        numero = normalizar_numero_cr(numero)
+
+        url = f"https://graph.facebook.com/v23.0/{WHATSAPP_PHONE_NUMBER_ID}/messages"
+        payload = {
+            "messaging_product": "whatsapp",
+            "to": numero,
+            "type": "template",
+            "template": {
+                "name": "nueva_cita_barbero_cr",
+                "language": {
+                    "code": "es_CR"
+                },
+                "components": [
+                    {
+                        "type": "body",
+                        "parameters": [
+                            {"type": "text", "text": str(cliente)},
+                            {"type": "text", "text": str(telefono_cliente)},
+                            {"type": "text", "text": str(servicio)},
+                            {"type": "text", "text": str(fecha)},
+                            {"type": "text", "text": str(hora)}
+                        ]
+                    }
+                ]
+            }
+        }
+
+        headers = {
+            "Authorization": f"Bearer {WHATSAPP_TOKEN}",
+            "Content-Type": "application/json"
+        }
+
+        r = requests.post(url, headers=headers, json=payload, timeout=20)
+        print("WHATSAPP BARBERO TEMPLATE STATUS:", r.status_code)
+        print("WHATSAPP BARBERO TEMPLATE RESPUESTA:", r.text)
+        return r
+
+    except Exception as e:
+        print("Error enviando template al barbero:", e)
+        return None
+        
 def inicializar_barberos():
     try:
         for b_id, info in BARBEROS.items():
@@ -538,16 +584,16 @@ def agendar():
         nombre_barbero = BARBEROS[barbero_id]["nombre"]
         telefono_barbero = BARBEROS[barbero_id]["telefono"]
 
-        mensaje_barbero = (
-            f"💈 Nueva cita agendada\n"
-            f"Cliente: {cliente}\n"
-            f"Teléfono: {normalizar_numero_cr(cliente_telefono)}\n"
-            f"Servicio: {servicio}\n"
-            f"Fecha: {fecha}\n"
-            f"Hora: {hora}"
+        r_barbero = enviar_whatsapp_template_barbero(
+            numero=telefono_barbero,
+            cliente=cliente,
+            servicio=servicio,
+            fecha=fecha,
+            hora=hora
         )
 
-        enviar_whatsapp_texto(telefono_barbero, mensaje_barbero)
+        if r_barbero is None or r_barbero.status_code not in [200, 201]:
+            print("No se pudo enviar la notificación template al barbero.")
 
         enviar_whatsapp_template_confirmacion(
             numero=cliente_telefono,
