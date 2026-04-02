@@ -192,10 +192,7 @@
                 Citas hoy
                 <span class="val" id="stat-total">{{ stats.total }}</span>
             </div>
-            <div class="stat-card">
-                Ganancia hoy
-                <span class="val" id="stat-ganancia">₡{{ stats.ganancia }}</span>
-            </div>
+            
             <div class="stat-card">
                 Canceladas hoy
                 <span class="val" id="stat-canceladas">{{ stats.canceladas_hoy }}</span>
@@ -205,23 +202,10 @@
         <div class="filtros">
             <a href="{{ url_for('panel_barbero', id_barbero=stats.id, solo='hoy') }}" class="{% if stats.modo == 'hoy' %}activo{% endif %}">Hoy</a>
             <a href="{{ url_for('panel_barbero', id_barbero=stats.id, solo='manana') }}" class="{% if stats.modo == 'manana' %}activo{% endif %}">Mañana</a>
-            <a href="{{ url_for('panel_barbero', id_barbero=stats.id, solo='todas') }}" class="{% if stats.modo == 'todas' %}activo{% endif %}">Todas</a>
-            <a href="{{ url_for('panel_barbero', id_barbero=stats.id, solo='historial_2026', mes=stats.mes) }}" class="{% if stats.modo == 'historial_2026' %}activo{% endif %}">Historial 2026</a>
+            
         </div>
 
-        {% if stats.modo == 'historial_2026' %}
-        <div class="meses">
-            <form method="GET" action="{{ url_for('panel_barbero', id_barbero=stats.id) }}">
-                <input type="hidden" name="solo" value="historial_2026">
-                <select name="mes">
-                    {% for numero, nombre in meses_2026.items() %}
-                    <option value="{{ numero }}" {% if stats.mes == numero %}selected{% endif %}>{{ nombre }} 2026</option>
-                    {% endfor %}
-                </select>
-                <button type="submit">Ver mes</button>
-            </form>
-        </div>
-        {% endif %}
+        
 
         <div id="citas-container">
             {% if citas %}
@@ -231,7 +215,8 @@
                         <p><strong>Servicio:</strong> {{ cita.servicio }}</p>
                         <p><strong>Fecha:</strong> {{ cita.fecha }}</p>
                         <p><strong>Hora:</strong> {{ cita.hora_formateada }}</p>
-                        <p><strong>Precio:</strong> ₡{{ cita.precio }}</p>
+                        
+
 
                         {% set estado = cita.estado|default('pendiente') %}
 
@@ -247,11 +232,7 @@
                                 <button type="submit" class="btn-atender">Marcar atendida</button>
                             </form>
 
-                            <form action="{{ url_for('cancelar_barbero') }}" method="POST">
-                                <input type="hidden" name="id" value="{{ cita.id }}">
-                                <input type="hidden" name="barbero_id" value="{{ stats.id }}">
-                                <button type="submit" class="btn-cancelar">Cancelar cita</button>
-                            </form>
+                            
                         </div>
                         {% endif %}
                     </div>
@@ -338,7 +319,7 @@
                 const data = await res.json();
 
                 document.getElementById("stat-total").textContent = data.stats.total;
-                document.getElementById("stat-ganancia").textContent = `₡${data.stats.ganancia}`;
+                
                 document.getElementById("stat-canceladas").textContent = data.stats.canceladas_hoy;
 
                 renderCitas(data.citas);
