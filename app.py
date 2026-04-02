@@ -1462,6 +1462,51 @@ def nueva_cita_dueno():
         hoy=hoy
     )
 
+@app.route("/api/panel_admin_meta")
+def api_panel_admin_meta():
+    vista = request.args.get("vista", "inicio")
+    rango = obtener_rango_vista(vista)
+
+    fecha_inicio = rango["inicio"]
+    fecha_fin = rango["fin"]
+
+    citas_periodo = obtener_citas_rango(fecha_inicio, fecha_fin)
+
+    barberos_info = obtener_todos_barberos()
+    barberos_dict = {str(b.get("id")): b for b in barberos_info}
+
+    for cita in citas_periodo:
+        enriquecer_cita(cita, barberos_dict)
+
+    citas_no_canceladas = [
+        c for c in citas_periodo
+        if str(c.get("estado", "")).lower() != "cancelada"
+    ]
+
+    citas_canceladas = [
+        c for c in citas_periodo
+        if str(c.get("estado", "")).lower() == "cancelada"
+    ]
+
+    resumen = {
+        "total_citas": len(citas_no_canceladas),
+        "total_canceladas": len(citas_canceladas),
+        "total_atendidas": len([
+            c for c in citas_no_canceladas
+            if str(c.get("estado", "")).lower() == "atendida"
+        ]),
+        "total_ingresos": sum(
+            calcular_precio(c.get("servicio", ""))
+            for c in citas_no_canceladas
+            if str(c.get("estado", "")).lower() == "atendida"
+        )
+    }
+
+    return jsonify({
+        "success": True,
+        "resumen": resumen
+    })
+
 @app.route("/api/barbero/<barbero_id>/toggle_disponibilidad", methods=["POST"])
 def toggle_disponibilidad(barbero_id):
     try:
