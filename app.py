@@ -67,7 +67,7 @@ MESES_2026 = {
     "11": "Noviembre",
     "12": "Diciembre",
 }
-
+MINUTOS_COLCHON = 30
 
 def _headers():
     return {
@@ -663,10 +663,10 @@ def agendar():
         if fecha < hoy_cr:
             flash("No puedes agendar en una fecha pasada.")
             return redirect(url_for("index"))
-        if not cumple_colchon_minimo(fecha, hora, 30):
-            flash("Debes agendar con al menos 30 minutos de anticipación.")
-            return redirect(url_for("index"))
-
+        
+        if fecha == hoy_cr and not cumple_colchon_minimo(fecha, hora, MINUTOS_COLCHON):
+          flash(f"Debes agendar con al menos {MINUTOS_COLCHON} minutos de anticipación.")
+          return redirect(url_for("index"))
         citas_existentes = obtener_citas_barbero_fecha(barbero_id, fecha)
         duracion_nueva = calcular_duracion(servicio)
 
@@ -821,16 +821,16 @@ def horas():
 
         if libre:
             if fecha == fecha_hoy_cr:
-             hora_slot_hoy = ahora_cr.replace(
-                hour=actual.hour,
-                minute=actual.minute,
-                second=0,
-                microsecond=0
-    )
-            if hora_slot_hoy >= ahora_cr + timedelta(minutes=30):
+                hora_slot_hoy = ahora_cr.replace(
+                    hour=actual.hour,
+                    minute=actual.minute,
+                    second=0,
+                    microsecond=0
+                )
+                if hora_slot_hoy >= ahora_cr + timedelta(minutes=MINUTOS_COLCHON):
+                    disponibles.append(actual.strftime("%I:%M%p").lower())
+            else:
                 disponibles.append(actual.strftime("%I:%M%p").lower())
-        else:
-            disponibles.append(actual.strftime("%I:%M%p").lower())
 
         actual += timedelta(minutes=15)
 
@@ -894,16 +894,16 @@ def horas_admin():
 
         if libre:
             if fecha == fecha_hoy_cr:
-                 hora_slot_hoy = ahora_cr.replace(
-                     hour=actual.hour,
-                     minute=actual.minute,
-                     second=0,
-                     microsecond=0
-    )   
-            if hora_slot_hoy >= ahora_cr + timedelta(minutes=30):
+                hora_slot_hoy = ahora_cr.replace(
+                    hour=actual.hour,
+                    minute=actual.minute,
+                    second=0,
+                    microsecond=0
+                )
+                if hora_slot_hoy >= ahora_cr + timedelta(minutes=MINUTOS_COLCHON):
                     disponibles.append(actual.strftime("%I:%M%p").lower())
-        else:
-            disponibles.append(actual.strftime("%I:%M%p").lower())
+            else:
+                disponibles.append(actual.strftime("%I:%M%p").lower())
 
         actual += timedelta(minutes=15)
 
