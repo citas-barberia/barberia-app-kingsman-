@@ -307,6 +307,7 @@ async function crearCitaManual(btn) {
         }
 
         mostrarMensaje('Cita manual creada correctamente', 'exito');
+        await cargarHorasManual();
         setTimeout(() => {
             window.location.href = '/dueno';
         }, 800);
