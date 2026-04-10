@@ -1671,7 +1671,7 @@ def crear_cita_manual():
     "fecha": fecha,
     "hora": hora_db,
     "barbero_id": int(barbero_id),
-    "estado": "atendida",
+    "estado": "pendiente",
     "origen": "manual",
     "observacion": observacion,
     "recordatorio_30_enviado": True
