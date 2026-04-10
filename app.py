@@ -109,6 +109,15 @@ def calcular_duracion(servicio):
     servicio = normalizar_servicio_nombre(servicio)
     return SERVICIOS.get(servicio, {}).get("duracion", 30)
 
+def obtener_duracion_cita(cita):
+    try:
+        duracion_guardada = int(cita.get("duracion_minutos") or 0)
+        if duracion_guardada > 0:
+            return duracion_guardada
+    except Exception:
+        pass
+
+    return calcular_duracion(cita.get("servicio", ""))
 
 def formatear_hora(hora_db):
     try:
@@ -676,8 +685,7 @@ def agendar():
                 continue
 
             hora_existente = str(cita.get("hora"))
-            servicio_existente = cita.get("servicio", "")
-            duracion_existente = calcular_duracion(servicio_existente)
+            duracion_existente = obtener_duracion_cita(cita)
 
             if hora_choque(hora, duracion_nueva, hora_existente, duracion_existente):
                 flash("Ese barbero ya tiene una cita en ese horario.")
@@ -788,8 +796,7 @@ def horas():
             continue
 
         hora_existente = str(cita.get("hora"))
-        servicio_existente = cita.get("servicio", "")
-        duracion_existente = calcular_duracion(servicio_existente)
+        duracion_existente = obtener_duracion_cita(cita)
 
         inicio = datetime.strptime(hora_existente, "%H:%M:%S")
         fin = inicio + timedelta(minutes=duracion_existente)
@@ -868,8 +875,7 @@ def horas_admin():
             continue
 
         hora_existente = str(cita.get("hora"))
-        servicio_existente = cita.get("servicio", "")
-        duracion_existente = calcular_duracion(servicio_existente)
+        duracion_existente = obtener_duracion_cita(cita)
 
         inicio = datetime.strptime(hora_existente, "%H:%M:%S")
         fin = inicio + timedelta(minutes=duracion_existente)
@@ -1659,7 +1665,7 @@ def crear_cita_manual():
             if str(cita.get("estado", "")).lower() == "cancelada":
                 continue
 
-            if hora_choque(hora, duracion_nueva, str(cita.get("hora")), calcular_duracion(cita.get("servicio", ""))):
+            if hora_choque(hora, duracion_nueva, str(cita.get("hora")), obtener_duracion_cita(cita)):
                 return jsonify({"error": "Ese horario ya está ocupado"}), 409
 
         hora_db = datetime.strptime(hora.upper(), "%I:%M%p").strftime("%H:%M:%S")
@@ -1674,6 +1680,7 @@ def crear_cita_manual():
     "estado": "pendiente",
     "origen": "manual",
     "observacion": observacion,
+    "duracion_minutos": duracion_nueva,
     "recordatorio_30_enviado": True
 }
 
