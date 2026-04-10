@@ -261,6 +261,7 @@ async function cargarHorasManual() {
             option.textContent = hora.toUpperCase();
             horaSelect.appendChild(option);
         });
+        ultimaFirmaHorasManual = horas.join("|");
     } catch (e) {
         console.error('Error cargando horas manuales:', e);
     }
@@ -320,6 +321,52 @@ async function crearCitaManual(btn) {
 document.getElementById('barbero_manual')?.addEventListener('change', cargarHorasManual);
 document.getElementById('fecha_manual')?.addEventListener('change', cargarHorasManual);
 document.getElementById('servicio_manual')?.addEventListener('change', cargarHorasManual);
+
+let ultimaFirmaHorasManual = "";
+
+async function vigilarHorasManual() {
+    const barbero_id = document.getElementById('barbero_manual').value;
+    const fecha = document.getElementById('fecha_manual').value;
+    const servicio = document.getElementById('servicio_manual').value;
+    const horaSelect = document.getElementById('hora_manual');
+
+    if (!barbero_id || !fecha || !servicio) return;
+
+    try {
+        const valorActual = horaSelect.value;
+
+        const res = await fetch(`/horas_admin?fecha=${fecha}&barbero_id=${barbero_id}&servicio=${encodeURIComponent(servicio)}&_=${Date.now()}`, {
+            cache: "no-store"
+        });
+
+        const horas = await res.json();
+        if (!Array.isArray(horas)) return;
+
+        const nuevaFirma = horas.join("|");
+
+        if (nuevaFirma !== ultimaFirmaHorasManual) {
+            horaSelect.innerHTML = '<option value="">Selecciona una hora</option>';
+
+            horas.forEach(hora => {
+                const option = document.createElement('option');
+                option.value = hora;
+                option.textContent = hora.toUpperCase();
+                horaSelect.appendChild(option);
+            });
+
+            if (horas.includes(valorActual)) {
+                horaSelect.value = valorActual;
+            }
+
+            ultimaFirmaHorasManual = nuevaFirma;
+        }
+    } catch (e) {
+        console.error('Error vigilando horas manuales:', e);
+    }
+}
+
+setInterval(vigilarHorasManual, 3000);
+
 </script>
 </body>
 </html>
