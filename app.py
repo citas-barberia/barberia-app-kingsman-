@@ -207,7 +207,7 @@ def obtener_citas_barbero_fecha(barbero_id, fecha):
         f"?barbero_id=eq.{barbero_id}"
         f"&fecha=eq.{fecha}"
         f"&order=hora.asc"
-        f"&select=id,hora,servicio,estado,cliente_nombre,cliente_telefono,barbero_id"
+        f"&select=id,hora,servicio,estado,cliente_nombre,cliente_telefono,barbero_id,duracion_minutos"
     )
     try:
         res = session.get(url, headers=_headers(), timeout=20)
