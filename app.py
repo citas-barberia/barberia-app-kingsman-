@@ -1874,7 +1874,7 @@ def crear_walkin():
 
         if res.status_code not in [200, 201]:
             print("ERROR crear_walkin:", res.status_code, res.text)
-            return jsonify({"error": "No se pudo guardar el cliente en espera"}), 500
+            return jsonify({"error": f"No se pudo guardar el cliente en espera: {res.text}"}), 500
 
         return jsonify({"success": True})
     except Exception as e:
