@@ -1278,6 +1278,12 @@ def panel_barbero(id_barbero):
         flash("Barbero no encontrado.")
         return redirect(url_for("index"))
 
+    barbero = obtener_barbero_info(id_barbero)
+
+    if not barbero or not bool(barbero.get("activo", False)):
+        flash("Este panel ya no está disponible.")
+        return redirect(url_for("index"))
+
     citas = obtener_todas_citas_barbero(id_barbero)
 
     for cita in citas:
@@ -1772,6 +1778,10 @@ def vista_walkins_dueno():
 def api_panel_barbero_meta(id_barbero):
     if id_barbero not in BARBEROS:
         return jsonify({"success": False, "error": "Barbero no encontrado"}), 404
+    barbero = obtener_barbero_info(id_barbero)
+
+    if not barbero or not bool(barbero.get("activo", False)):
+        return jsonify({"success": False, "error": "Panel no disponible"}), 403
 
     citas = obtener_todas_citas_barbero(id_barbero)
 
