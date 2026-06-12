@@ -754,7 +754,7 @@ def index():
     c_id = request.cookies.get("cliente_id") or str(uuid.uuid4())
 
     barberos_info = obtener_todos_barberos()
-    orden_cliente = {"3": 1, "4": 2, "1": 3}
+    orden_cliente = {"4": 1, "3": 2, "1": 3}
     barberos_info = sorted(
     barberos_info,
     key=lambda b: orden_cliente.get(str(b.get("id")), 99)
@@ -789,7 +789,7 @@ def api_barberos_disponibles():
     try:
         barberos_info = obtener_todos_barberos()
 
-        orden_cliente = {"3": 1, "4": 2, "1": 3}
+        orden_cliente = {"4": 1, "3": 2, "1": 3}
 
         barberos_info = sorted(
             barberos_info,
@@ -1489,6 +1489,13 @@ def panel_dueno():
 
     barberos_info = obtener_todos_barberos()
     barberos_info = [b for b in barberos_info if bool(b.get("activo", False))]
+
+    orden_admin = {"4": 1, "3": 2, "1": 3}
+    barberos_info = sorted(
+        barberos_info,
+        key=lambda b: orden_admin.get(str(b.get("id")), 99)
+    )
+
     barberos_dict = {str(b.get("id")): b for b in barberos_info}
     walkins_hoy = obtener_walkins_fecha(hoy)
 
@@ -1496,9 +1503,9 @@ def panel_dueno():
     for w in walkins_hoy:
         bid = str(w.get("barbero_id", ""))
         walkins_por_barbero.setdefault(bid, []).append(w)
+
     for cita in citas_periodo:
         enriquecer_cita(cita, barberos_dict)
-
     citas_no_canceladas = [
         c for c in citas_periodo
         if str(c.get("estado", "")).lower() != "cancelada"
@@ -1633,6 +1640,13 @@ def api_panel_admin():
 
     barberos_info = obtener_todos_barberos()
     barberos_info = [b for b in barberos_info if bool(b.get("activo", False))]
+
+    orden_admin = {"4": 1, "3": 2, "1": 3}
+    barberos_info = sorted(
+        barberos_info,
+        key=lambda b: orden_admin.get(str(b.get("id")), 99)
+    )
+
     barberos_dict = {str(b.get("id")): b for b in barberos_info}
 
     for cita in citas_periodo:
@@ -1789,7 +1803,7 @@ def api_panel_barbero_meta(id_barbero):
         return jsonify({"success": False, "error": "Panel no disponible"}), 403
 
     citas = obtener_todas_citas_barbero(id_barbero)
-    
+
     for cita in citas:
         cita["hora_formateada"] = formatear_hora(cita.get("hora"))
         cita["precio"] = calcular_precio(cita.get("servicio", ""))
