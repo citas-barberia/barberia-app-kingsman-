@@ -30,7 +30,8 @@ WHATSAPP_PHONE_NUMBER_ID = os.getenv("WHATSAPP_PHONE_NUMBER_ID")
 BARBEROS = {
     "1": {"nombre": "William", "telefono": "50685968072"},
     "2": {"nombre": "Jose Luis", "telefono": "50685968072"},
-    "3": {"nombre": "Juan Carlos", "telefono": "50685968072"}
+    "3": {"nombre": "Juan Carlos", "telefono": "50685968072"},
+    "4": {"nombre": "Franco", "telefono": "506XXXXXXXX"}
 }
 ALIAS_SERVICIOS = {
     "Corte de cabello": "Corte premium",
@@ -42,6 +43,7 @@ HORARIOS_ALMUERZO = {
     "1": {"inicio": "11:30AM", "fin": "12:30PM"},  # William
     "2": {"inicio": "12:00PM", "fin": "01:00PM"},  # Jose Luis
     "3": {"inicio": "12:00PM", "fin": "01:00PM"},  # Juan Carlos
+    "4": {"inicio": "12:00PM", "fin": "01:00PM"},  # Franco
 }
 SERVICIOS = {
     "Corte premium": {"precio": 6000, "duracion": 30},
@@ -752,7 +754,7 @@ def index():
     c_id = request.cookies.get("cliente_id") or str(uuid.uuid4())
 
     barberos_info = obtener_todos_barberos()
-    orden_cliente = {"3": 1, "2": 2, "1": 3}
+    orden_cliente = {"3": 1, "4": 2, "1": 3}
     barberos_info = sorted(
     barberos_info,
     key=lambda b: orden_cliente.get(str(b.get("id")), 99)
@@ -763,7 +765,7 @@ def index():
         bid = str(barbero.get("id"))
 
         # Disponible = acepta citas en general (hoy o futuro)
-        if bool(barbero.get("disponible_hoy", False)):
+        if bool(barbero.get("activo", False)) and bool(barbero.get("disponible_hoy", False)):
             nombre = BARBEROS.get(bid, {}).get("nombre", barbero.get("nombre", "Barbero"))
             barberos_visibles[bid] = {
                 "nombre": nombre,
@@ -787,7 +789,7 @@ def api_barberos_disponibles():
     try:
         barberos_info = obtener_todos_barberos()
 
-        orden_cliente = {"3": 1, "2": 2, "1": 3}
+        orden_cliente = {"3": 1, "4": 2, "1": 3}
 
         barberos_info = sorted(
             barberos_info,
@@ -798,7 +800,7 @@ def api_barberos_disponibles():
         for barbero in barberos_info:
             bid = str(barbero.get("id"))
 
-            if bool(barbero.get("disponible_hoy", False)):
+            if bool(barbero.get("activo", False)) and bool(barbero.get("disponible_hoy", False)):
                 nombre = BARBEROS.get(bid, {}).get("nombre", barbero.get("nombre", "Barbero"))
                 barberos_visibles[bid] = {
                     "nombre": nombre,
@@ -833,7 +835,7 @@ def agendar():
             flash("No se encontró el barbero seleccionado.")
             return redirect(url_for("index"))
 
-        if not bool(barbero.get("disponible_hoy", False)):
+        if not bool(barbero.get("activo", False)) or not bool(barbero.get("disponible_hoy", False)):
             flash("Ese barbero no está disponible para agenda.")
             return redirect(url_for("index"))
 
@@ -958,7 +960,7 @@ def horas():
     if not barbero:
         return jsonify([])
 
-    if not bool(barbero.get("disponible_hoy", False)):
+    if not bool(barbero.get("activo", False)) or not bool(barbero.get("disponible_hoy", False)):
         return jsonify([])
 
     duracion_nueva = calcular_duracion(servicio)
@@ -1486,6 +1488,7 @@ def panel_dueno():
     citas_periodo = obtener_citas_rango(fecha_inicio, fecha_fin)
 
     barberos_info = obtener_todos_barberos()
+    barberos_info = [b for b in barberos_info if bool(b.get("activo", False))]
     barberos_dict = {str(b.get("id")): b for b in barberos_info}
     walkins_hoy = obtener_walkins_fecha(hoy)
 
@@ -1629,6 +1632,7 @@ def api_panel_admin():
     citas_periodo = obtener_citas_rango(fecha_inicio, fecha_fin)
 
     barberos_info = obtener_todos_barberos()
+    barberos_info = [b for b in barberos_info if bool(b.get("activo", False))]
     barberos_dict = {str(b.get("id")): b for b in barberos_info}
 
     for cita in citas_periodo:
@@ -1778,13 +1782,14 @@ def vista_walkins_dueno():
 def api_panel_barbero_meta(id_barbero):
     if id_barbero not in BARBEROS:
         return jsonify({"success": False, "error": "Barbero no encontrado"}), 404
+
     barbero = obtener_barbero_info(id_barbero)
 
     if not barbero or not bool(barbero.get("activo", False)):
         return jsonify({"success": False, "error": "Panel no disponible"}), 403
 
     citas = obtener_todas_citas_barbero(id_barbero)
-
+    
     for cita in citas:
         cita["hora_formateada"] = formatear_hora(cita.get("hora"))
         cita["precio"] = calcular_precio(cita.get("servicio", ""))
