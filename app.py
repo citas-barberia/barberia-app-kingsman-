@@ -31,7 +31,7 @@ BARBEROS = {
     "1": {"nombre": "William", "telefono": "50685968072"},
     "2": {"nombre": "Jose Luis", "telefono": "50685968072"},
     "3": {"nombre": "Juan Carlos", "telefono": "50685968072"},
-    "4": {"nombre": "Franco", "telefono": "506XXXXXXXX"}
+    "4": {"nombre": "Franco", "telefono": "50670804122"}
 }
 ALIAS_SERVICIOS = {
     "Corte de cabello": "Corte premium",
