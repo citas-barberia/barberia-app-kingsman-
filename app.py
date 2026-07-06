@@ -222,12 +222,26 @@ def obtener_horario_por_fecha(fecha_str):
 
     return HORARIO_SEMANA
 
-def hora_choque(hora_nueva, duracion_nueva, hora_existente, duracion_existente):
-    inicio_nueva = datetime.strptime(hora_nueva.upper(), "%I:%M%p")
-    fin_nueva = inicio_nueva + timedelta(minutes=duracion_nueva)
+def parse_hora(hora):
+    hora = str(hora).strip().upper()
 
-    inicio_existente = datetime.strptime(hora_existente, "%H:%M:%S")
-    fin_existente = inicio_existente + timedelta(minutes=duracion_existente)
+    formatos = ["%I:%M%p", "%I:%M %p", "%H:%M:%S", "%H:%M"]
+
+    for fmt in formatos:
+        try:
+            return datetime.strptime(hora, fmt)
+        except ValueError:
+            pass
+
+    raise ValueError(f"Formato de hora inválido: {hora}")
+
+
+def hora_choque(hora_nueva, duracion_nueva, hora_existente, duracion_existente):
+    inicio_nueva = parse_hora(hora_nueva)
+    fin_nueva = inicio_nueva + timedelta(minutes=int(duracion_nueva))
+
+    inicio_existente = parse_hora(hora_existente)
+    fin_existente = inicio_existente + timedelta(minutes=int(duracion_existente))
 
     return inicio_nueva < fin_existente and fin_nueva > inicio_existente
 
@@ -875,17 +889,18 @@ def agendar():
         link_cancelacion = f"{request.host_url.rstrip('/')}/cancelar/{token_cancelacion}"
 
         data = {
-            "cliente_nombre": cliente,
-            "cliente_telefono": normalizar_numero_cr(cliente_telefono),
-            "servicio": servicio,
-            "fecha": fecha,
-            "hora": hora_db,
-            "barbero_id": int(barbero_id),
-            "estado": "pendiente",
-            "origen": "online",
-            "recordatorio_30_enviado": False,
-            "token_cancelacion": token_cancelacion
-        }
+    "cliente_nombre": cliente,
+    "cliente_telefono": normalizar_numero_cr(cliente_telefono),
+    "servicio": servicio,
+    "fecha": fecha,
+    "hora": hora_db,
+    "barbero_id": int(barbero_id),
+    "estado": "pendiente",
+    "origen": "online",
+    "duracion_minutos": duracion_nueva,
+    "recordatorio_30_enviado": False,
+    "token_cancelacion": token_cancelacion
+}
 
         r = requests.post(
             f"{SUPABASE_URL}/rest/v1/citas",
@@ -893,6 +908,10 @@ def agendar():
             json=data,
             timeout=20
         )
+
+        if r.status_code == 409:
+           flash("Ese horario acaba de ser tomado. Por favor elige otra hora.")
+           return redirect(url_for("index"))
 
         if r.status_code not in [200, 201]:
             print("STATUS SUPABASE:", r.status_code)
