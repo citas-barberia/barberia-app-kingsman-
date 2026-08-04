@@ -1328,31 +1328,61 @@ def panel_barbero(id_barbero):
         flash("Este panel ya no está disponible.")
         return redirect(url_for("index"))
 
-    citas = obtener_todas_citas_barbero(id_barbero)
-
-    for cita in citas:
-        cita["hora_formateada"] = formatear_hora(cita.get("hora"))
-        cita["precio"] = calcular_precio(cita.get("servicio", ""))
-
-    hoy = datetime.now(TZ).strftime("%Y-%m-%d")
-    manana = (datetime.now(TZ) + timedelta(days=1)).strftime("%Y-%m-%d")
     modo = request.args.get("solo", "hoy")
     mes = request.args.get("mes", datetime.now(TZ).strftime("%m"))
 
-    if modo == "hoy":
-        filtradas = [c for c in citas if str(c.get("fecha")) == hoy and str(c.get("estado", "")).lower() != "cancelada"]
-    elif modo == "manana":
-        filtradas = [c for c in citas if str(c.get("fecha")) == manana and str(c.get("estado", "")).lower() != "cancelada"]
-    elif modo == "historial_2026":
-        filtradas = [c for c in citas if str(c.get("fecha", "")).startswith(f"2026-{mes}-")]
+    # Traer directamente desde Supabase las citas del filtro seleccionado
+    citas_consultadas = obtener_citas_barbero_filtradas(
+        id_barbero,
+        modo=modo,
+        mes=mes
+    )
+
+    for cita in citas_consultadas:
+        cita["hora_formateada"] = formatear_hora(cita.get("hora"))
+        cita["precio"] = calcular_precio(cita.get("servicio", ""))
+
+    # En el listado normal no mostrar canceladas
+    if modo in ["hoy", "manana", "todas"]:
+        filtradas = [
+            cita for cita in citas_consultadas
+            if str(cita.get("estado", "")).lower() != "cancelada"
+        ]
     else:
-        filtradas = [c for c in citas if str(c.get("estado", "")).lower() != "cancelada"]
+        filtradas = citas_consultadas
 
-    hoy_citas = [c for c in citas if str(c.get("fecha")) == hoy and str(c.get("estado", "")).lower() != "cancelada"]
-    hoy_atendidas = [c for c in hoy_citas if str(c.get("estado", "")).lower() == "atendida"]
-    hoy_canceladas = [c for c in citas if str(c.get("fecha")) == hoy and str(c.get("estado", "")).lower() == "cancelada"]
+    # Consultar aparte las citas de hoy para los contadores
+    citas_hoy = obtener_citas_barbero_filtradas(
+        id_barbero,
+        modo="hoy"
+    )
 
-    ganancia = sum(calcular_precio(c.get("servicio", "")) for c in hoy_atendidas)
+    hoy_citas = [
+        cita for cita in citas_hoy
+        if str(cita.get("estado", "")).lower() != "cancelada"
+    ]
+
+    hoy_atendidas = [
+        cita for cita in hoy_citas
+        if str(cita.get("estado", "")).lower() == "atendida"
+    ]
+
+    hoy_canceladas = [
+        cita for cita in citas_hoy
+        if str(cita.get("estado", "")).lower() == "cancelada"
+    ]
+
+    ganancia = sum(
+        calcular_precio(cita.get("servicio", ""))
+        for cita in hoy_atendidas
+    )
+
+    print("=== PANEL BARBERO ===")
+    print("Barbero:", id_barbero)
+    print("Modo:", modo)
+    print("Mes:", mes)
+    print("Citas consultadas:", len(citas_consultadas))
+    print("Citas mostradas:", len(filtradas))
 
     stats = {
         "id": id_barbero,
@@ -1370,7 +1400,6 @@ def panel_barbero(id_barbero):
         stats=stats,
         meses_2026=MESES_2026
     )
-
 
 @app.route("/atendida", methods=["POST"])
 def atendida():
