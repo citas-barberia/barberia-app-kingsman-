@@ -302,13 +302,36 @@ def obtener_citas_barbero_fecha(barbero_id, fecha):
 
     
 def obtener_todas_citas_barbero(barbero_id):
-    url = f"{SUPABASE_URL}/rest/v1/citas?barbero_id=eq.{barbero_id}&order=fecha.asc,hora.asc"
+    url = f"{SUPABASE_URL}/rest/v1/citas"
+
+    params = {
+        "barbero_id": f"eq.{barbero_id}",
+        "order": "fecha.asc,hora.asc",
+        "select": "*"
+    }
+
     try:
-        res = requests.get(url, headers=_headers(), timeout=20)
+        res = session.get(
+            url,
+            headers=_headers(),
+            params=params,
+            timeout=20
+        )
+
+        print("BARBERO ID:", barbero_id)
+        print("STATUS SUPABASE:", res.status_code)
+        print("RESPUESTA SUPABASE:", res.text)
+
+        if res.status_code != 200:
+            return []
+
         data = res.json()
         return data if isinstance(data, list) else []
-    except Exception:
+
+    except Exception as e:
+        print("ERROR CONSULTANDO CITAS:", e)
         return []
+    
 def obtener_citas_barbero_filtradas(barbero_id, modo="hoy", mes=None):
     hoy_dt = datetime.now(TZ).date()
 
