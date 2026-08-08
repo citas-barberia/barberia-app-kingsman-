@@ -1323,7 +1323,12 @@ def cancelar_por_token(token):
 
 @app.after_request
 def add_no_cache_headers(response):
-    if request.path.startswith("/panel/") or request.path.startswith("/dueno") or request.path.startswith("/api/"):
+    if (
+        request.path == "/"
+        or request.path.startswith("/panel/")
+        or request.path.startswith("/dueno")
+        or request.path.startswith("/api/")
+    ):
         response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
         response.headers["Pragma"] = "no-cache"
         response.headers["Expires"] = "0"
