@@ -254,6 +254,76 @@ document.addEventListener("DOMContentLoaded", () => {
     refrescarBarberos();
     setInterval(refrescarBarberos, 10000);
 });
+
+
+function forzarOrdenBarberos() {
+    const select = document.getElementById("barbero_id");
+    if (!select) return;
+
+    // Orden que quiere Will:
+    // Franco, Juan Carlos, José Luis, William
+    const orden = ["4", "3", "5", "1"];
+
+    const opciones = Array.from(select.options);
+
+    // Mantener "Selecciona barbero" arriba
+    const placeholder = opciones.find(op => op.value === "");
+
+    // Obtener opciones por ID
+    const mapa = {};
+    opciones.forEach(op => {
+        if (op.value !== "") {
+            mapa[op.value] = op;
+        }
+    });
+
+    const ordenActual = opciones
+        .filter(op => op.value !== "")
+        .map(op => op.value)
+        .join(",");
+
+    const ordenDeseado = orden
+        .filter(id => mapa[id])
+        .join(",");
+
+    // Si ya está correcto, no hacemos nada
+    if (ordenActual === ordenDeseado) return;
+
+    select.innerHTML = "";
+
+    if (placeholder) {
+        select.appendChild(placeholder);
+    }
+
+    orden.forEach(id => {
+        if (mapa[id]) {
+            select.appendChild(mapa[id]);
+        }
+    });
+}
+
+// Ejecutar cuando carga la página
+document.addEventListener("DOMContentLoaded", () => {
+    forzarOrdenBarberos();
+
+    const select = document.getElementById("barbero_id");
+
+    if (select) {
+        // Si otro JavaScript vuelve a modificar el selector,
+        // lo volvemos a poner inmediatamente en el orden correcto.
+        const observer = new MutationObserver(() => {
+            forzarOrdenBarberos();
+        });
+
+        observer.observe(select, {
+            childList: true,
+            subtree: true
+        });
+    }
+});
+
+// También ejecutarlo después de terminar de cargar todo
+window.addEventListener("load", forzarOrdenBarberos);
 </script>
 
 </body>
