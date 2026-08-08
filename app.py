@@ -31,8 +31,10 @@ BARBEROS = {
     "1": {"nombre": "William", "telefono": "50685968072"},
     "2": {"nombre": "Jose Luis", "telefono": "50685968072"},
     "3": {"nombre": "Juan Carlos", "telefono": "50685968072"},
-    "4": {"nombre": "Franco", "telefono": "50670804122"}
+    "4": {"nombre": "Franco", "telefono": "50670804122"},
+    "5": {"nombre": "José Luis", "telefono": "50688053560"}
 }
+
 ALIAS_SERVICIOS = {
     "Corte de cabello": "Corte premium",
     "Corte": "Corte premium",
@@ -44,6 +46,7 @@ HORARIOS_ALMUERZO = {
     "2": {"inicio": "12:00PM", "fin": "01:00PM"},  # Jose Luis
     "3": {"inicio": "12:00PM", "fin": "01:00PM"},  # Juan Carlos
     "4": {"inicio": "12:00PM", "fin": "01:00PM"},  # Franco
+    "5": {"inicio": "12:00PM", "fin": "01:00PM"},  # José Luis
 }
 SERVICIOS = {
     "Corte premium": {"precio": 6000, "duracion": 30},
@@ -791,7 +794,12 @@ def index():
     c_id = request.cookies.get("cliente_id") or str(uuid.uuid4())
 
     barberos_info = obtener_todos_barberos()
-    orden_cliente = {"4": 1, "3": 2, "1": 3}
+    orden_cliente = {
+    "4": 1,  # Franco
+    "3": 2,  # Juan Carlos
+    "5": 3,  # José Luis nuevo
+    "1": 4   # William
+}
     barberos_info = sorted(
     barberos_info,
     key=lambda b: orden_cliente.get(str(b.get("id")), 99)
@@ -826,7 +834,12 @@ def api_barberos_disponibles():
     try:
         barberos_info = obtener_todos_barberos()
 
-        orden_cliente = {"4": 1, "3": 2, "1": 3}
+        orden_cliente = {
+            "4": 1,  # Franco
+            "3": 2,  # Juan Carlos
+            "5": 3,  # José Luis nuevo
+            "1": 4   # William
+        }
 
         barberos_info = sorted(
             barberos_info,
@@ -1561,7 +1574,12 @@ def panel_dueno():
     barberos_info = obtener_todos_barberos()
     barberos_info = [b for b in barberos_info if bool(b.get("activo", False))]
 
-    orden_admin = {"4": 1, "3": 2, "1": 3}
+    orden_admin = {
+    "4": 1,
+    "3": 2,
+    "5": 3,
+    "1": 4
+}
     barberos_info = sorted(
         barberos_info,
         key=lambda b: orden_admin.get(str(b.get("id")), 99)
@@ -1712,7 +1730,12 @@ def api_panel_admin():
     barberos_info = obtener_todos_barberos()
     barberos_info = [b for b in barberos_info if bool(b.get("activo", False))]
 
-    orden_admin = {"4": 1, "3": 2, "1": 3}
+    orden_admin = {
+    "4": 1,
+    "3": 2,
+    "5": 3,
+    "1": 4
+}
     barberos_info = sorted(
         barberos_info,
         key=lambda b: orden_admin.get(str(b.get("id")), 99)
