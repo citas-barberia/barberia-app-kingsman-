@@ -84,19 +84,24 @@
         </div>
 
         <div class="form-group">
-            <label>Barbero:</label>
-            <select name="barbero_id" id="barbero_id" required onchange="actualizarHoras()">
-                <option value="" disabled selected>Selecciona barbero</option>
-                {% set orden_barberos = ['4', '3', '5', '1'] %}
+    <label>Barbero:</label>
 
-{% for id in orden_barberos %}
-    {% if id in barberos %}
-        <option value="{{ id }}">{{ barberos[id].nombre }}</option>
-    {% endif %}
-{% endfor %} 
-            </select>
-            <div class="mini-texto">Las horas que salgan son del barbero que selecciones.</div>
-        </div>
+    <select name="barbero_id" id="barbero_id" required onchange="actualizarHoras()">
+        <option value="" disabled selected>Selecciona barbero</option>
+
+        {% set orden_barberos = ['4', '3', '5', '1'] %}
+
+        {% for id in orden_barberos %}
+            {% if id in barberos %}
+                <option value="{{ id }}">{{ barberos[id].nombre }}</option>
+            {% endif %}
+        {% endfor %}
+    </select>
+
+    <div class="mini-texto">
+        Las horas que salgan son del barbero que selecciones.
+    </div>
+</div>
 
         <div class="form-group">
             <label>Servicio:</label>
